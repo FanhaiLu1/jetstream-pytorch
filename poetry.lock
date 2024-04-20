@@ -30,6 +30,7 @@ numpy = ">=1.24.1"
 setuptools = {version = "*", markers = "python_version >= \"3.12\""}
 toolz = ">=0.9.0"
 typing-extensions = ">=4.2.0"
+ray[serve] = ">=2.10.0"
 
 [[package]]
 name = "etils"
