@@ -339,7 +339,7 @@ class PyTorchEngineRayWorker(engine_api.Engine):
       padded_tokens: PrefillInputs,  # PrefillInputs[np.ndarray],
       true_length: int
   ) -> None:
-    self.prefix = self.prefill(params=params, existing_prefix=existing_prefix, padded_tokens=padded_tokens, true_length=true_length)
+    self.prefill(params=params, existing_prefix=existing_prefix, padded_tokens=padded_tokens, true_length=true_length)
     # gathered_result = multihost_utils.process_allgather(self.prefix, tiled=True)
     print("---------------------------------- return None")
     return None   
