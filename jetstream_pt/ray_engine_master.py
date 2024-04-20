@@ -12,7 +12,6 @@ Params = Any
 Prefix = Any
 DecodeState = Any
 
-@ray.remote
 class PyTorchEngineRayMaster(engine_api.Engine):
     
     def __init__(self, engine_workers, tokenizer_path, context_length, batch_size):
@@ -23,8 +22,8 @@ class PyTorchEngineRayMaster(engine_api.Engine):
 
     def load_params(self) -> Params:
         all_outputs = []
-        for worker in self.workers:
-            output = worker.load_params.remote()
+        for worker in self.engine_workers:
+            output = worker.load_params_ray.remote()
             all_outputs.append(output)
         _ = ray.get(all_outputs)
         return None
@@ -33,8 +32,8 @@ class PyTorchEngineRayMaster(engine_api.Engine):
         self,
     ) -> DecodeState:
         all_outputs = []
-        for worker in self.workers:
-            output = worker.init_decode_state.remote()
+        for worker in self.engine_workers:
+            output = worker.init_decode_state_ray.remote()
             all_outputs.append(output)
         _ = ray.get(all_outputs)
         return None
@@ -45,12 +44,12 @@ class PyTorchEngineRayMaster(engine_api.Engine):
         *,
         params: Any,  # Weights
         existing_prefix: Optional[Prefix] = None,
-        padded_tokens: jax.Array,  # PrefillInputs[jax.Array],
+        padded_tokens: np.ndarray,  # PrefillInputs[np.ndarray],
         true_length: int
     ) -> Prefix:
-        padded_tokens = np.asanyarray(padded_tokens)
+        # padded_tokens = np.asanyarray(padded_tokens)
         all_outputs = []
-        for worker in self.workers:
+        for worker in self.engine_workers:
             output = worker.prefill_ray.remote(params=params, existing_prefix=existing_prefix, padded_tokens=padded_tokens, true_length=true_length)
             all_outputs.append(output)
         _ = ray.get(all_outputs)
@@ -63,7 +62,7 @@ class PyTorchEngineRayMaster(engine_api.Engine):
         slot: int,
     ) -> DecodeState:
         all_outputs = []
-        for worker in self.workers:
+        for worker in self.engine_workers:
             output = worker.insert_ray.remote(prefix=prefix, decode_state=decode_state, slot=slot)
             all_outputs.append(output)
         _ = ray.get(all_outputs)
@@ -73,7 +72,7 @@ class PyTorchEngineRayMaster(engine_api.Engine):
         self, params: Any, decode_state: DecodeState
     ) -> tuple[None, engine_api.ResultTokens]:
         all_outputs = []
-        for worker in self.workers:
+        for worker in self.engine_workers:
             output = worker.generate_ray.remote(params=params, decode_state=decode_state)
             all_outputs.append(output)
         state, result_tokens = ray.get(all_outputs)[0]
@@ -82,7 +81,8 @@ class PyTorchEngineRayMaster(engine_api.Engine):
     def get_tokenizer(self) -> tokenizer_pb2.TokenizerParameters:
         return tokenizer_pb2.TokenizerParameters(path=self.tokenizer_path)
 
-
+    
+    
     @property
     def max_concurrent_decodes(self) -> int:
         return self.max_batch_size
@@ -109,7 +109,6 @@ class PyTorchEngineRayMaster(engine_api.Engine):
                
 
 def create_pytorch_engine_ray_master(
-    devices: list[Any],
     tokenizer_path: str,
     ckpt_path: Optional[str] = None,
     samples_per_slot: int = 1,
@@ -123,6 +122,7 @@ def create_pytorch_engine_ray_master(
     quantize_kv = False,
     max_cache_length = 1024,
 ) -> PyTorchEngineRayMaster:
+    
     ray.init(ignore_reinit_error=True)
     pod_name = tpu.get_current_pod_name()
     num_hosts = tpu.get_current_pod_worker_count()
@@ -131,7 +131,6 @@ def create_pytorch_engine_ray_master(
     engine_workers = []
     for _ in range(num_hosts):
         engine_worker = engine_worker_with_tpu_resource.remote(
-            devices=devices,
             tokenizer_path=tokenizer_path,
             ckpt_path=ckpt_path,
             samples_per_slot=samples_per_slot,
@@ -147,7 +146,7 @@ def create_pytorch_engine_ray_master(
         )
         engine_workers.append(engine_worker)
     
-    engine_master = PyTorchEngineRayMaster.remote(
+    engine_master = PyTorchEngineRayMaster(
         engine_workers=engine_workers,
         tokenizer_path=tokenizer_path,
         context_length=context_length,

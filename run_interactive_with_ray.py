@@ -18,6 +18,7 @@ from absl import logging
 import random
 from typing import List
 import jax
+import ray
 
 from jetstream.engine import token_utils
 from colorama import Fore, Style
@@ -71,10 +72,8 @@ def create_engine():
 
   max_prefill_predict_length = 1024
   max_target_length = max_prefill_predict_length + 256
-  devices = jax.devices()
   start = time.perf_counter()
   engine_master = ray_je.create_pytorch_engine_ray_master(
-        devices=devices,
         tokenizer_path=_TOKENIZER_PATH.value,
         ckpt_path=_CKPT_PATH.value,
         bf16_enable=True,

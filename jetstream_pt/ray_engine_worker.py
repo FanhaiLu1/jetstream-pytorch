@@ -43,7 +43,7 @@ Mesh = jax.sharding.Mesh
 P = jax.sharding.PartitionSpec
 
 Params = jax.Array
-PrefillInputs = jax.Array
+PrefillInputs = np.ndarray
 
 @struct.dataclass
 class Prefix:
@@ -71,7 +71,6 @@ class PyTorchEngineRayWorker(engine_api.Engine):
 
   def __init__(
       self,
-      devices: list[Any],
       tokenizer_path: str,
       ckpt_path: Optional[str] = None,
       samples_per_slot: int = 1,
@@ -92,6 +91,11 @@ class PyTorchEngineRayWorker(engine_api.Engine):
     jax.config.update('jax_traceback_filtering', 'off')
     torch_dtype = torch.bfloat16 if bf16_enable else torch.float32
     torch.set_default_dtype(torch_dtype)
+    self.devices = jax.devices()
+    device_count = jax.device_count()
+    local_device_count = jax.local_device_count()
+    print(f"------------------ Jax devices. device_count:{device_count}, local_device_count{local_device_count} ")
+
 
     checkpoint_format = ''
     checkpoint_path = ''
@@ -215,9 +219,9 @@ class PyTorchEngineRayWorker(engine_api.Engine):
                   dtype=self.default_dtype),
     )
 
-  def init_decode_state_wrapper(
+  def init_decode_state_ray(
       self,
-  ) -> DecodeState:
+  ) -> None:
     self.decode_state = self.init_decode_state()
     return None  
 
@@ -294,7 +298,7 @@ class PyTorchEngineRayWorker(engine_api.Engine):
       *,
       params: Any,  # Weights
       existing_prefix: Optional[Prefix] = None,
-      padded_tokens: PrefillInputs,  # PrefillInputs[jax.Array],
+      padded_tokens: PrefillInputs,  # PrefillInputs[np.ndarray],
       true_length: int
   ) -> Prefix:
     if isinstance(padded_tokens, jax.Array):
@@ -307,7 +311,7 @@ class PyTorchEngineRayWorker(engine_api.Engine):
     seq_len = padded_tokens.shape[0]
     input_indexes = jnp.arange(0, seq_len)
     logits, updated_caches = self._call_model_prefill(
-      params, 
+      self.params, 
       batched_token, 
       input_indexes,
     )
@@ -331,10 +335,12 @@ class PyTorchEngineRayWorker(engine_api.Engine):
       *,
       params: Any,  # Weights
       existing_prefix: Optional[Prefix] = None,
-      padded_tokens: PrefillInputs,  # PrefillInputs[jax.Array],
+      padded_tokens: PrefillInputs,  # PrefillInputs[np.ndarray],
       true_length: int
-  ) -> Prefix:
+  ) -> None:
     self.prefix = self.prefill(params=params, existing_prefix=existing_prefix, padded_tokens=padded_tokens, true_length=true_length)
+    # gathered_result = multihost_utils.process_allgather(self.prefix, tiled=True)
+    print("---------------------------------- return None")
     return None   
 
   def shrink_prefix(
@@ -530,7 +536,7 @@ class PyTorchEngineRayWorker(engine_api.Engine):
     # fill mask first
     mask = decode_state.mask.at[:, decode_state.current_position].set(0)
     logits, new_caches, new_scales = self._call_model_generate(
-      params, 
+      self.params, 
       decode_state.tokens, 
       input_indexes, 
       decode_state.caches, 
@@ -628,8 +634,7 @@ class PyTorchEngineRayWorker(engine_api.Engine):
         continue
       print(f'Name: {k}, shape: {v.shape} x {v.dtype}')
 
-    self.params = weights
-    return None
+    return weights
 
   def load_params(self) -> Params:
     # TODO load from files
@@ -648,6 +653,10 @@ class PyTorchEngineRayWorker(engine_api.Engine):
         continue
       print(f'Name: {k}, shape: {v.shape} x {v.dtype}')
     return jax_weights
+  
+  def load_params_ray(self) -> None:
+    self.params = self.load_params()
+    return None
 
   def colocated_cpus(self) -> Union[list[engine_api.CpuDevices], None]:
     return jax.devices('cpu')[0]
