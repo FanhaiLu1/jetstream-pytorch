@@ -48,7 +48,7 @@ PrefillInputs = np.ndarray
 @struct.dataclass
 class Prefix:
   token: jax.Array  # [1, seqlen]
-  caches: List[Tuple[jax.Array, jax.Array]]
+  # caches: List[Tuple[jax.Array, jax.Array]]
   seq_len: int  # true seqlen front pad
 
 @struct.dataclass
@@ -328,7 +328,8 @@ class PyTorchEngineRayWorker(engine_api.Engine):
     #       v, seq_len - true_length, true_length, axis=2))
     #   for k, v in updated_caches
     # ]
-    return Prefix(token, updated_caches, true_length)
+    # return Prefix(token, updated_caches, true_length)
+    return Prefix(token, true_length)
   
   def prefill_ray(
       self,
@@ -665,7 +666,7 @@ class PyTorchEngineRayWorker(engine_api.Engine):
     """Returns the shardings necessary to transfer data between engines."""
     return Prefix(
         self.replicated,
-        self.cache_sharding,
+        # self.cache_sharding,
         self.replicated,
     )
 

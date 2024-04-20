@@ -145,7 +145,6 @@ def create_pytorch_engine_ray_master(
             max_cache_length=max_cache_length,           
         )
         engine_workers.append(engine_worker)
-    
     engine_master = PyTorchEngineRayMaster(
         engine_workers=engine_workers,
         tokenizer_path=tokenizer_path,
