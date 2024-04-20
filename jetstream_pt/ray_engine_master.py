@@ -1,0 +1,159 @@
+from typing import Any, List, Optional, Tuple, Union
+
+import numpy as np
+import jax
+import ray
+from ray.util.accelerators import tpu
+
+from jetstream.engine import engine_api, tokenizer_pb2
+from jetstream_pt.ray_engine_worker import PyTorchEngineRayWorker
+
+Params = Any
+Prefix = Any
+DecodeState = Any
+
+@ray.remote
+class PyTorchEngineRayMaster(engine_api.Engine):
+    
+    def __init__(self, engine_workers, tokenizer_path, context_length, batch_size):
+        self.engine_workers = engine_workers
+        self.tokenizer_path=tokenizer_path
+        self.context_length=context_length
+        self.batch_size=batch_size
+
+    def load_params(self) -> Params:
+        all_outputs = []
+        for worker in self.workers:
+            output = worker.load_params.remote()
+            all_outputs.append(output)
+        _ = ray.get(all_outputs)
+        return None
+
+    def init_decode_state(
+        self,
+    ) -> DecodeState:
+        all_outputs = []
+        for worker in self.workers:
+            output = worker.init_decode_state.remote()
+            all_outputs.append(output)
+        _ = ray.get(all_outputs)
+        return None
+        
+     
+    def prefill(
+        self,
+        *,
+        params: Any,  # Weights
+        existing_prefix: Optional[Prefix] = None,
+        padded_tokens: jax.Array,  # PrefillInputs[jax.Array],
+        true_length: int
+    ) -> Prefix:
+        padded_tokens = np.asanyarray(padded_tokens)
+        all_outputs = []
+        for worker in self.workers:
+            output = worker.prefill_ray.remote(params=params, existing_prefix=existing_prefix, padded_tokens=padded_tokens, true_length=true_length)
+            all_outputs.append(output)
+        _ = ray.get(all_outputs)
+        return None
+    
+    def insert(
+        self,
+        prefix: Prefix,
+        decode_state: DecodeState,
+        slot: int,
+    ) -> DecodeState:
+        all_outputs = []
+        for worker in self.workers:
+            output = worker.insert_ray.remote(prefix=prefix, decode_state=decode_state, slot=slot)
+            all_outputs.append(output)
+        _ = ray.get(all_outputs)
+        return None 
+ 
+    def generate(
+        self, params: Any, decode_state: DecodeState
+    ) -> tuple[None, engine_api.ResultTokens]:
+        all_outputs = []
+        for worker in self.workers:
+            output = worker.generate_ray.remote(params=params, decode_state=decode_state)
+            all_outputs.append(output)
+        state, result_tokens = ray.get(all_outputs)[0]
+        return state, result_tokens
+
+    def get_tokenizer(self) -> tokenizer_pb2.TokenizerParameters:
+        return tokenizer_pb2.TokenizerParameters(path=self.tokenizer_path)
+
+
+    @property
+    def max_concurrent_decodes(self) -> int:
+        return self.max_batch_size
+
+    @property
+    def samples_per_slot(self) -> int:
+        return 1
+
+    @property
+    def max_prefill_length(self) -> int:
+        return self.context_length
+
+    def colocated_cpus(self) -> Union[list[engine_api.CpuDevices], None]:
+        return jax.devices('cpu')[0]    
+    
+    def get_prefix_destination_sharding(self) -> Prefix:
+        "No implementation"
+        return None
+
+    @property
+    def mesh(self):
+        "No implementation"
+        return None   
+               
+
+def create_pytorch_engine_ray_master(
+    devices: list[Any],
+    tokenizer_path: str,
+    ckpt_path: Optional[str] = None,
+    samples_per_slot: int = 1,
+    bf16_enable: bool = False,
+    param_size: str = '7b',
+    context_length: int = 1024,
+    batch_size: int = 1,
+    max_decode_length: int = 4096,
+    model_name = "llama",
+    quantize_weights = False,
+    quantize_kv = False,
+    max_cache_length = 1024,
+) -> PyTorchEngineRayMaster:
+    ray.init(ignore_reinit_error=True)
+    pod_name = tpu.get_current_pod_name()
+    num_hosts = tpu.get_current_pod_worker_count()
+    print(f"pod_name:{pod_name}, number of host: {num_hosts}")
+    engine_worker_with_tpu_resource = PyTorchEngineRayWorker.options(resources={"TPU": 4})
+    engine_workers = []
+    for _ in range(num_hosts):
+        engine_worker = engine_worker_with_tpu_resource.remote(
+            devices=devices,
+            tokenizer_path=tokenizer_path,
+            ckpt_path=ckpt_path,
+            samples_per_slot=samples_per_slot,
+            bf16_enable=bf16_enable,
+            param_size=param_size,
+            context_length=context_length,
+            batch_size=batch_size,
+            max_decode_length=max_decode_length,
+            model_name=model_name, 
+            quantize_weights=quantize_weights, 
+            quantize_kv=quantize_kv,
+            max_cache_length=max_cache_length,           
+        )
+        engine_workers.append(engine_worker)
+    
+    engine_master = PyTorchEngineRayMaster.remote(
+        engine_workers=engine_workers,
+        tokenizer_path=tokenizer_path,
+        context_length=context_length,
+        batch_size=batch_size,
+      )
+    return engine_master
+        
+        
+    
