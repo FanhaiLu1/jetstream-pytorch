@@ -316,6 +316,8 @@ class PyTorchEngineRayWorker():
       batched_token, 
       input_indexes,
     )
+    jax.debug.visualize_array_sharding(logits)
+    logits = multihost_utils.process_allgather(logits, tiled=True)
     if len(logits.shape) == 3: # b, seqlen, num words
       logits = logits[0]
 
