@@ -17,6 +17,8 @@
 from typing import Any, List, Optional, Tuple, Union
 import threading
 import functools
+import humanize
+
 
 from flax import struct
 import jax
@@ -24,6 +26,7 @@ from jax import numpy as jnp
 import torch
 import numpy as np
 import ray
+
 
 from jetstream.engine import engine_api, tokenizer_pb2, token_utils
 import torch_xla2
@@ -221,6 +224,17 @@ class PyTorchEngineRayWorker():
                   dtype=self.default_dtype),
     )
 
+  def print_mem_usage(self):
+        
+    fmt_size = functools.partial(humanize.naturalsize, binary=True)
+
+    for d in jax.local_devices():
+      stats = d.memory_stats()
+      used = stats['bytes_in_use']
+      limit = stats['bytes_limit']
+      print(f"print(f'---------------------------- Using {fmt_size(used)} / {fmt_size(limit)} ({used/limit:%}) on {d}")
+    
+  
   def init_decode_state_ray(
       self,
   ) -> None:
@@ -358,6 +372,8 @@ class PyTorchEngineRayWorker():
       raise
     # gathered_result = multihost_utils.process_allgather(self.prefix, tiled=True)
     print("---------------------------------- return None")
+    print(f'---------------------------- after prefill')  
+    self.print_mem_usage()  
     return token   
 
   def shrink_prefix(
@@ -655,6 +671,7 @@ class PyTorchEngineRayWorker():
 
   def load_params(self) -> Params:
     # TODO load from files
+    self.print_mem_usage()
     with jax.default_device(self.colocated_cpus()):
       if self.env.checkpoint_path:
         if self.env.checkpoint_format == 'safetensors':
@@ -669,9 +686,13 @@ class PyTorchEngineRayWorker():
       if k.startswith('layers') and not k.startswith('layers.0'):
         continue
       print(f'Name: {k}, shape: {v.shape} x {v.dtype}')
+    
+   
     return jax_weights
   
   def load_params_ray(self) -> None:
+    print(f'---------------------------- after load params')  
+    self.print_mem_usage()  
     self.params = self.load_params()
     return None
 
