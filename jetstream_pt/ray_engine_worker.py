@@ -303,12 +303,13 @@ class PyTorchEngineRayWorker():
       true_length: int
   ) -> Any:
     print("---------------------------------- enter.....")
+    padded_tokens = jnp.asarray(padded_tokens)
     if isinstance(padded_tokens, jax.Array):
       batched_token = padded_tokens.reshape(1, -1)
     else:
       raise TypeError(
           'Input tokens should be of type Jax Array, but receiving:'
-          ' {prefill_inputs}'
+          ' {padded_tokens}'
       )
     seq_len = padded_tokens.shape[0]
     input_indexes = jnp.arange(0, seq_len)
