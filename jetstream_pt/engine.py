@@ -537,7 +537,7 @@ class PyTorchEngine(engine_api.Engine):
 
   def get_prefix_destination_sharding(self) -> Any:
     """Returns the shardings necessary to transfer data between engines."""
-    return (
+    return Prefix(
         self.replicated,
         self.cache_sharding,
         self.replicated,

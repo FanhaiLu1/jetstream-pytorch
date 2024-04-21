@@ -66,7 +66,7 @@ class DecodeState:
 
 
 @ray.remote
-class PyTorchEngineRayWorker(engine_api.Engine):
+class PyTorchEngineRayWorker():
   """Wraps functions to the Jet Engine API format."""
 
   def __init__(
@@ -162,7 +162,7 @@ class PyTorchEngineRayWorker(engine_api.Engine):
     self.replicated = env.sharding_by_axis(-1) # replicated
     self.cache_sharding = self.y_sharding
 
-    self.prefill = jax.jit(self.prefill)
+    self.prefill = jax.jit(self.prefill, out_shardings=self.get_prefix_destination_sharding())
     self.insert = jax.jit(self.insert, donate_argnums=(0, 1), out_shardings=self.get_decode_state_sharding())
     self.generate = jax.jit(self.generate, donate_argnums=(1, ), out_shardings=(self.get_decode_state_sharding(), None))
     # self._insert_wrap = jax.jit(self._insert_wrap, donate_argnums=(0, 1),
@@ -301,7 +301,7 @@ class PyTorchEngineRayWorker(engine_api.Engine):
       existing_prefix: Optional[Prefix] = None,
       padded_tokens: PrefillInputs,  # PrefillInputs[np.ndarray],
       true_length: int
-  ) -> Prefix:
+  ) -> Any:
     if isinstance(padded_tokens, jax.Array):
       batched_token = padded_tokens.reshape(1, -1)
     else:
@@ -330,7 +330,7 @@ class PyTorchEngineRayWorker(engine_api.Engine):
     #   for k, v in updated_caches
     # ]
     # return Prefix(token, updated_caches, true_length)
-    return Prefix(token, true_length)
+    return token, true_length
   
   def prefill_ray(
       self,
@@ -663,9 +663,9 @@ class PyTorchEngineRayWorker(engine_api.Engine):
   def colocated_cpus(self) -> Union[list[engine_api.CpuDevices], None]:
     return jax.devices('cpu')[0]
 
-  def get_prefix_destination_sharding(self) -> Prefix:
+  def get_prefix_destination_sharding(self) -> Any:
     """Returns the shardings necessary to transfer data between engines."""
-    return Prefix(
+    return (
         self.replicated,
         # self.cache_sharding,
         self.replicated,
