@@ -165,6 +165,7 @@ class PyTorchEngineRayWorker():
     # self._call_model_prefill = jax.jit(self._call_model_prefill)
     self.insert = jax.jit(self.insert, donate_argnums=(0, 1), out_shardings=self.get_decode_state_sharding())
     self.generate = jax.jit(self.generate, donate_argnums=(1, ), out_shardings=(self.get_decode_state_sharding(), None))
+    self._call_model_prefill = jax.jit(self._call_model_prefill)
     # self._insert_wrap = jax.jit(self._insert_wrap, donate_argnums=(0, 1),
     #                              out_shardings=self.get_decode_state_sharding())
 
@@ -263,10 +264,10 @@ class PyTorchEngineRayWorker():
     return torch_xla2.tensor.unwrap((res, updated_caches, scales))
 
 
-  @functools.partial(
-    jax.jit,
-    static_argnums=(0, ),
-  )
+  # @functools.partial(
+  #   jax.jit,
+  #   static_argnums=(0, ),
+  # )
   def _call_model_prefill(self, weights, tokens, input_indexes):
     caches = [
       cache_manager.KVCachePrefill(self.env.enable_kv_quantization) for _ in self.pt_model.layers
@@ -351,12 +352,13 @@ class PyTorchEngineRayWorker():
         logits = logits[0]
 
       token = np.argmax(logits[true_length-1])
+      print(f"---------------------------------- token {token}")
     except Exception as e:
       print(f"----------------------------------- Exception {e}. Shutting down")
       raise
     # gathered_result = multihost_utils.process_allgather(self.prefix, tiled=True)
     print("---------------------------------- return None")
-    return None   
+    return token   
 
   def shrink_prefix(
       self,
