@@ -239,6 +239,8 @@ class PyTorchEngineRayWorker():
       self,
   ) -> None:
     self.decode_state = self.init_decode_state()
+    print(f'---------------------------- after init_decode_state')  
+    self.print_mem_usage()  
     return None  
 
   def _call_model_generate(

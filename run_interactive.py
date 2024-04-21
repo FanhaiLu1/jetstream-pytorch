@@ -21,6 +21,8 @@ import jax
 
 from jetstream.engine import token_utils
 from colorama import Fore, Style
+import functools
+import humanize
 
 
 import os
@@ -90,6 +92,15 @@ def create_engine():
   print('Initialize engine', time.perf_counter() - start)
   return engine
 
+def print_mem_usage(self):
+      
+  fmt_size = functools.partial(humanize.naturalsize, binary=True)
+
+  for d in jax.local_devices():
+    stats = d.memory_stats()
+    used = stats['bytes_in_use']
+    limit = stats['bytes_limit']
+    print(f"print(f'---------------------------- Using {fmt_size(used)} / {fmt_size(limit)} ({used/limit:%}) on {d}")
 
 def main(argv):
 
