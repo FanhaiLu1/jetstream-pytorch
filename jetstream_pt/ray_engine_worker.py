@@ -319,9 +319,9 @@ class PyTorchEngineRayWorker():
       input_indexes,
     )
 
+    jax.debug.visualize_array_sharding(logits)
     logits = multihost_utils.process_allgather(logits, tiled=True)
     print("---------------------------------- finish logits.....")
-    jax.debug.visualize_array_sharding(logits)
     print("---------------------------------- visualize logits .....")
     
     # truncate to true_length didnt work need to be out side of jit
