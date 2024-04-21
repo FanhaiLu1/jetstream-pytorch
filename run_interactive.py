@@ -108,6 +108,8 @@ def main(argv):
 
   start = time.perf_counter()
   params = engine.load_params()
+  print(f'---------------------------- after params')  
+  print_mem_usage()
   print('Load params ', time.perf_counter() - start)
 
   metadata = engine.get_tokenizer()
@@ -120,6 +122,8 @@ def main(argv):
     jax.profiler.start_trace(_PROFILING_OUTPUT.value)
 
   decode_state = engine.init_decode_state()
+  print(f'---------------------------- after init_decode_state')  
+  print_mem_usage()  
   prompts: List[str] = [
     "I believe the meaning of life is",
     "To add an element to an ArrayList of a specific class type in Java, you can follow the following steps:\n\n1. Create an instance of the class to be added.\n2. Get a reference to the ArrayList.\n3. Call the `add()` method on the ArrayList, passing the instance of the class as the argument.\n\nHere's an example of how to add an object of type `Person` to an ArrayList of type `ArrayList<Person>`:\n```csharp\n// Create a new instance of the Person class\nPerson person = new Person(\"John\", 25);\n\n// Get a reference to the ArrayList\nArrayList<Person> peopleList = new ArrayList<>();\n\n// Add the person object to the ArrayList\npeopleList.add(person);\n```\nIn this example, the `Person` class is assumed to have a constructor that takes two arguments: a String for the person's name, and an int for their age. You can substitute your own class and constructor as necessary.",
