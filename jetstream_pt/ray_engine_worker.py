@@ -319,6 +319,7 @@ class PyTorchEngineRayWorker():
     )
 
     print("---------------------------------- finish logits.....")
+    jax.debug.visualize_array_sharding(logits)
     
     # truncate to true_length didnt work need to be out side of jit
     # caches = [
@@ -343,7 +344,6 @@ class PyTorchEngineRayWorker():
     print("---------------------------------- enter prefill_ray ")
     try:
       logits = self.prefill(params=params, existing_prefix=existing_prefix, padded_tokens=padded_tokens, true_length=true_length)
-      jax.debug.visualize_array_sharding(logits)
       logits = multihost_utils.process_allgather(logits, tiled=True)
       if len(logits.shape) == 3: # b, seqlen, num words
         logits = logits[0]
