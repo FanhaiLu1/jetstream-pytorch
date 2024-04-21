@@ -302,6 +302,7 @@ class PyTorchEngineRayWorker():
       padded_tokens: PrefillInputs,  # PrefillInputs[np.ndarray],
       true_length: int
   ) -> Any:
+    print("---------------------------------- enter.....")
     if isinstance(padded_tokens, jax.Array):
       batched_token = padded_tokens.reshape(1, -1)
     else:
@@ -342,7 +343,12 @@ class PyTorchEngineRayWorker():
       padded_tokens: PrefillInputs,  # PrefillInputs[np.ndarray],
       true_length: int
   ) -> None:
-    self.prefill(params=params, existing_prefix=existing_prefix, padded_tokens=padded_tokens, true_length=true_length)
+    
+    print("---------------------------------- enter prefill_ray ")
+    try:
+      self.prefill(params=params, existing_prefix=existing_prefix, padded_tokens=padded_tokens, true_length=true_length)
+    except Exception as e:
+      print(f"----------------------------------- Exception {e}. Shutting down")
     # gathered_result = multihost_utils.process_allgather(self.prefix, tiled=True)
     print("---------------------------------- return None")
     return None   
