@@ -162,7 +162,7 @@ class PyTorchEngineRayWorker():
     self.replicated = env.sharding_by_axis(-1) # replicated
     self.cache_sharding = self.y_sharding
 
-    self.prefill = jax.jit(self.prefill, out_shardings=self.replicated)
+    # self._call_model_prefill = jax.jit(self._call_model_prefill)
     self.insert = jax.jit(self.insert, donate_argnums=(0, 1), out_shardings=self.get_decode_state_sharding())
     self.generate = jax.jit(self.generate, donate_argnums=(1, ), out_shardings=(self.get_decode_state_sharding(), None))
     # self._insert_wrap = jax.jit(self._insert_wrap, donate_argnums=(0, 1),
@@ -318,8 +318,10 @@ class PyTorchEngineRayWorker():
       input_indexes,
     )
 
+    logits = multihost_utils.process_allgather(logits, tiled=True)
     print("---------------------------------- finish logits.....")
     jax.debug.visualize_array_sharding(logits)
+    print("---------------------------------- visualize logits .....")
     
     # truncate to true_length didnt work need to be out side of jit
     # caches = [
@@ -344,7 +346,6 @@ class PyTorchEngineRayWorker():
     print("---------------------------------- enter prefill_ray ")
     try:
       logits = self.prefill(params=params, existing_prefix=existing_prefix, padded_tokens=padded_tokens, true_length=true_length)
-      logits = multihost_utils.process_allgather(logits, tiled=True)
       if len(logits.shape) == 3: # b, seqlen, num words
         logits = logits[0]
 
