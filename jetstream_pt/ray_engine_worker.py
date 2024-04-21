@@ -162,7 +162,7 @@ class PyTorchEngineRayWorker():
     self.replicated = env.sharding_by_axis(-1) # replicated
     self.cache_sharding = self.y_sharding
 
-    self.prefill = jax.jit(self.prefill, out_shardings=self.get_prefix_destination_sharding())
+    self.prefill = jax.jit(self.prefill, out_shardings=self.replicated)
     self.insert = jax.jit(self.insert, donate_argnums=(0, 1), out_shardings=self.get_decode_state_sharding())
     self.generate = jax.jit(self.generate, donate_argnums=(1, ), out_shardings=(self.get_decode_state_sharding(), None))
     # self._insert_wrap = jax.jit(self._insert_wrap, donate_argnums=(0, 1),
@@ -318,6 +318,7 @@ class PyTorchEngineRayWorker():
       input_indexes,
     )
 
+    print("---------------------------------- finish logits.....")
     
     # truncate to true_length didnt work need to be out side of jit
     # caches = [
@@ -328,7 +329,7 @@ class PyTorchEngineRayWorker():
     #   for k, v in updated_caches
     # ]
     # return Prefix(token, updated_caches, true_length)
-    return logits, true_length
+    return logits
   
   def prefill_ray(
       self,
@@ -341,7 +342,7 @@ class PyTorchEngineRayWorker():
     
     print("---------------------------------- enter prefill_ray ")
     try:
-      logits, true_length = self.prefill(params=params, existing_prefix=existing_prefix, padded_tokens=padded_tokens, true_length=true_length)
+      logits = self.prefill(params=params, existing_prefix=existing_prefix, padded_tokens=padded_tokens, true_length=true_length)
       jax.debug.visualize_array_sharding(logits)
       logits = multihost_utils.process_allgather(logits, tiled=True)
       if len(logits.shape) == 3: # b, seqlen, num words
@@ -350,6 +351,7 @@ class PyTorchEngineRayWorker():
       token = np.argmax(logits[true_length-1])
     except Exception as e:
       print(f"----------------------------------- Exception {e}. Shutting down")
+      raise
     # gathered_result = multihost_utils.process_allgather(self.prefix, tiled=True)
     print("---------------------------------- return None")
     return None   
