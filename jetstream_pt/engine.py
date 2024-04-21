@@ -535,9 +535,9 @@ class PyTorchEngine(engine_api.Engine):
   def colocated_cpus(self) -> Union[list[engine_api.CpuDevices], None]:
     return jax.devices('cpu')[0]
 
-  def get_prefix_destination_sharding(self) -> Prefix:
+  def get_prefix_destination_sharding(self) -> Any:
     """Returns the shardings necessary to transfer data between engines."""
-    return Prefix(
+    return (
         self.replicated,
         self.cache_sharding,
         self.replicated,

@@ -67,7 +67,6 @@ _MAX_CACHE_LENGTH = flags.DEFINE_integer('max_cache_length', 1024, 'kv_cache_qua
 
 
 def create_engine():
-  jax.config.update('jax_default_prng_impl', 'unsafe_rbg')
   os.environ["TF_CPP_MIN_LOG_LEVEL"] = "0"
 
   max_prefill_predict_length = 1024

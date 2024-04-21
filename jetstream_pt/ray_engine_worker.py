@@ -85,6 +85,7 @@ class PyTorchEngineRayWorker(engine_api.Engine):
       max_cache_length = 1024,
   ):
     
+    jax.config.update('jax_default_prng_impl', 'unsafe_rbg')
     jax.config.update('jax_dynamic_shapes', False)
     # Pytorch exports has int64 constants.
     # jax.config.update('jax_enable_x64', True)
