@@ -317,12 +317,7 @@ class PyTorchEngineRayWorker():
       batched_token, 
       input_indexes,
     )
-    jax.debug.visualize_array_sharding(logits)
-    logits = multihost_utils.process_allgather(logits, tiled=True)
-    if len(logits.shape) == 3: # b, seqlen, num words
-      logits = logits[0]
 
-    token = jnp.argmax(logits[true_length-1])
     
     # truncate to true_length didnt work need to be out side of jit
     # caches = [
@@ -333,7 +328,7 @@ class PyTorchEngineRayWorker():
     #   for k, v in updated_caches
     # ]
     # return Prefix(token, updated_caches, true_length)
-    return token, true_length
+    return logits, true_length
   
   def prefill_ray(
       self,
@@ -346,7 +341,13 @@ class PyTorchEngineRayWorker():
     
     print("---------------------------------- enter prefill_ray ")
     try:
-      self.prefill(params=params, existing_prefix=existing_prefix, padded_tokens=padded_tokens, true_length=true_length)
+      logits, true_length = self.prefill(params=params, existing_prefix=existing_prefix, padded_tokens=padded_tokens, true_length=true_length)
+      jax.debug.visualize_array_sharding(logits)
+      logits = multihost_utils.process_allgather(logits, tiled=True)
+      if len(logits.shape) == 3: # b, seqlen, num words
+        logits = logits[0]
+
+      token = np.argmax(logits[true_length-1])
     except Exception as e:
       print(f"----------------------------------- Exception {e}. Shutting down")
     # gathered_result = multihost_utils.process_allgather(self.prefix, tiled=True)
