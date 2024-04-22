@@ -350,7 +350,7 @@ class PyTorchEngineRayWorker():
     #   for k, v in updated_caches
     # ]
     # return Prefix(token, updated_caches, true_length)
-    return logits
+    return logits, updated_caches
   
   def prefill_ray(
       self,
@@ -363,11 +363,12 @@ class PyTorchEngineRayWorker():
     
     print("---------------------------------- enter prefill_ray ")
     try:
-      logits = self.prefill(params=params, existing_prefix=existing_prefix, padded_tokens=padded_tokens, true_length=true_length)
+      logits, updated_caches = self.prefill(params=params, existing_prefix=existing_prefix, padded_tokens=padded_tokens, true_length=true_length)
       if len(logits.shape) == 3: # b, seqlen, num words
         logits = logits[0]
 
       token = np.argmax(logits[true_length-1])
+      self.prefill = Prefix(token, updated_caches, true_length)
       print(f"---------------------------------- token {token}")
     except Exception as e:
       print(f"----------------------------------- Exception {e}. Shutting down")
