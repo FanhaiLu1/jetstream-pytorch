@@ -281,7 +281,7 @@ class PyTorchEngineRayWorker():
     scales = []
     if self.env.enable_kv_quantization:
       scales = [c.scalers() for c in caches_obj]
-    return torch_xla2.tensor.unwrap((res, updated_caches, scales))
+    return torch_xla2.tensor.unwrap((res, updated_caches, scales, input_pos + 1))
 
 
   # @functools.partial(
@@ -572,7 +572,7 @@ class PyTorchEngineRayWorker():
     #seq_len = padded_tokens.shape[0]
 
     # fill mask first
-    logits, new_caches, new_scales = self._call_model_generate(
+    logits, new_caches, new_scales, new_input_pos = self._call_model_generate(
       self.params, 
       decode_state.tokens, 
       decode_state.caches, 
@@ -610,7 +610,7 @@ class PyTorchEngineRayWorker():
       new_scales,
       (decode_state.current_position + 1) % self.env.cache_sequence_length,
       lens,
-      decode_state.input_pos + 1,
+      new_input_pos,
       decode_state.mask,
     )
     print('new_pos', (decode_state.current_position + 1) % self.env.cache_sequence_length)
