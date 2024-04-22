@@ -169,15 +169,16 @@ class PyTorchEngineRayWorker():
     self.insert = jax.jit(self.insert, donate_argnums=(0, 1), out_shardings=self.get_decode_state_sharding())
     # self.generate = jax.jit(self.generate, donate_argnums=(1, ), out_shardings=(self.get_decode_state_sharding(), None))
     self._call_model_prefill = jax.jit(self._call_model_prefill)
-    self._call_model_generate = jax.jit(self._call_model_generate, out_shardings=(
-        self.replicated,
-        self.cache_sharding,
-        self.replicated,
-        self.replicated,
-        self.replicated,
-        self.replicated,
-        self.replicated,
-    ))
+    # self._call_model_generate = jax.jit(self._call_model_generate, out_shardings=(
+    #     self.replicated,
+    #     self.cache_sharding,
+    #     self.replicated,
+    #     self.replicated,
+    #     self.replicated,
+    #     self.replicated,
+    #     self.replicated,
+    # ))
+    self._call_model_generate = jax.jit(self._call_model_generate)
     # self._insert_wrap = jax.jit(self._insert_wrap, donate_argnums=(0, 1),
     #                              out_shardings=self.get_decode_state_sharding())
 
