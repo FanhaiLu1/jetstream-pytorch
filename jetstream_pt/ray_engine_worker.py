@@ -253,6 +253,7 @@ class PyTorchEngineRayWorker():
     mask,
     current_position,
     input_pos,
+    lens,
   ):
     pos = current_position
     input_indexes = jnp.full((1,), pos) 
@@ -281,7 +282,7 @@ class PyTorchEngineRayWorker():
     scales = []
     if self.env.enable_kv_quantization:
       scales = [c.scalers() for c in caches_obj]
-    return torch_xla2.tensor.unwrap((res, updated_caches, scales, input_pos + 1))
+    return torch_xla2.tensor.unwrap((res, updated_caches, scales, input_pos + 1, lens + 1))
 
 
   # @functools.partial(
@@ -572,7 +573,7 @@ class PyTorchEngineRayWorker():
     #seq_len = padded_tokens.shape[0]
 
     # fill mask first
-    logits, new_caches, new_scales, new_input_pos = self._call_model_generate(
+    logits, new_caches, new_scales, new_input_pos, new_lens = self._call_model_generate(
       self.params, 
       decode_state.tokens, 
       decode_state.caches, 
@@ -580,15 +581,16 @@ class PyTorchEngineRayWorker():
       decode_state.mask,
       decode_state.current_position,
       decode_state.input_pos,
+      decode_state.lens,
     )
     logits = multihost_utils.process_allgather(logits, tiled=True)
     next_token = self._sampling(logits, self.param.max_batch_size)
-    lens = decode_state.lens + 1
+    
     data = np.concatenate(
         [
             decode_state.tokens,
             np.ones_like(next_token),
-            lens,
+            new_lens,
         ],
         axis=-1,
     )
@@ -609,7 +611,7 @@ class PyTorchEngineRayWorker():
       new_caches,
       new_scales,
       (decode_state.current_position + 1) % self.env.cache_sequence_length,
-      lens,
+      new_lens,
       new_input_pos,
       decode_state.mask,
     )
