@@ -51,7 +51,7 @@ PrefillInputs = np.ndarray
 @struct.dataclass
 class Prefix:
   token: jax.Array  # [1, seqlen]
-  # caches: List[Tuple[jax.Array, jax.Array]]
+  caches: List[Tuple[jax.Array, jax.Array]]
   seq_len: int  # true seqlen front pad
 
 @struct.dataclass
