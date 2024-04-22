@@ -248,12 +248,15 @@ class PyTorchEngineRayWorker():
     self, 
     weights, 
     tokens, 
-    input_indexes, 
     caches, 
     cache_scales,
     mask,
+    current_position,
     input_pos,
   ):
+    pos = current_position
+    input_indexes = jnp.full((1,), pos) 
+    mask = mask.at[:, current_position].set(0)
     if self.env.enable_kv_quantization:
       caches_obj = [
         cache_manager.Int8KVCacheGenerate(
@@ -567,18 +570,15 @@ class PyTorchEngineRayWorker():
       self, params: Any, decode_state: DecodeState
   ) -> tuple[DecodeState, engine_api.ResultTokens]:
     #seq_len = padded_tokens.shape[0]
-    pos = decode_state.current_position
-    input_indexes = jnp.full((1,), pos) 
 
     # fill mask first
-    mask = decode_state.mask.at[:, decode_state.current_position].set(0)
     logits, new_caches, new_scales = self._call_model_generate(
       self.params, 
       decode_state.tokens, 
-      input_indexes, 
       decode_state.caches, 
       decode_state.cache_scales,
-      mask,
+      decode_state.mask,
+      decode_state.current_position,
       decode_state.input_pos,
     )
     logits = multihost_utils.process_allgather(logits, tiled=True)
@@ -611,7 +611,7 @@ class PyTorchEngineRayWorker():
       (decode_state.current_position + 1) % self.env.cache_sequence_length,
       lens,
       decode_state.input_pos + 1,
-      mask,
+      decode_state.mask,
     )
     print('new_pos', (decode_state.current_position + 1) % self.env.cache_sequence_length)
     print('cache_seq_len', self.env.cache_sequence_length)
