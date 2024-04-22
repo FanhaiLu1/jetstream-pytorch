@@ -169,7 +169,15 @@ class PyTorchEngineRayWorker():
     self.insert = jax.jit(self.insert, donate_argnums=(0, 1), out_shardings=self.get_decode_state_sharding())
     # self.generate = jax.jit(self.generate, donate_argnums=(1, ), out_shardings=(self.get_decode_state_sharding(), None))
     self._call_model_prefill = jax.jit(self._call_model_prefill)
-    self._call_model_generate = jax.jit(self._call_model_generate)
+    self._call_model_generate = jax.jit(self._call_model_generate, out_shardings=(
+        self.replicated,
+        self.cache_sharding,
+        self.replicated,
+        self.replicated,
+        self.replicated,
+        self.replicated,
+        self.replicated,
+    ))
     # self._insert_wrap = jax.jit(self._insert_wrap, donate_argnums=(0, 1),
     #                              out_shardings=self.get_decode_state_sharding())
 
@@ -282,7 +290,8 @@ class PyTorchEngineRayWorker():
     scales = []
     if self.env.enable_kv_quantization:
       scales = [c.scalers() for c in caches_obj]
-    return torch_xla2.tensor.unwrap((res, updated_caches, scales, input_pos + 1, lens + 1))
+    new_current_position = (current_position + 1) % self.env.cache_sequence_length  
+    return torch_xla2.tensor.unwrap((res, updated_caches, scales, input_pos + 1, lens + 1, new_current_position, mask))
 
 
   # @functools.partial(
@@ -573,7 +582,7 @@ class PyTorchEngineRayWorker():
     #seq_len = padded_tokens.shape[0]
 
     # fill mask first
-    logits, new_caches, new_scales, new_input_pos, new_lens = self._call_model_generate(
+    logits, new_caches, new_scales, new_input_pos, new_lens, new_current_position, new_mask = self._call_model_generate(
       self.params, 
       decode_state.tokens, 
       decode_state.caches, 
@@ -610,12 +619,12 @@ class PyTorchEngineRayWorker():
       next_token, 
       new_caches,
       new_scales,
-      (decode_state.current_position + 1) % self.env.cache_sequence_length,
+      new_current_position,
       new_lens,
       new_input_pos,
-      decode_state.mask,
+      new_mask,
     )
-    print('new_pos', (decode_state.current_position + 1) % self.env.cache_sequence_length)
+    print('new_pos', new_current_position)
     print('cache_seq_len', self.env.cache_sequence_length)
 
     return new_decode_state, result_tokens
@@ -626,6 +635,8 @@ class PyTorchEngineRayWorker():
   ) -> tuple[None, engine_api.ResultTokens]:
     decode_state, result_tokens = self.generate(self.params, self.decode_state)
     self.decode_state = decode_state
+    print(f'---------------------------- after generate')  
+    self.print_mem_usage() 
     return None, result_tokens
     
 
