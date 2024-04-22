@@ -167,8 +167,9 @@ class PyTorchEngineRayWorker():
 
     # self._call_model_prefill = jax.jit(self._call_model_prefill)
     self.insert = jax.jit(self.insert, donate_argnums=(0, 1), out_shardings=self.get_decode_state_sharding())
-    self.generate = jax.jit(self.generate, donate_argnums=(1, ), out_shardings=(self.get_decode_state_sharding(), None))
+    # self.generate = jax.jit(self.generate, donate_argnums=(1, ), out_shardings=(self.get_decode_state_sharding(), None))
     self._call_model_prefill = jax.jit(self._call_model_prefill)
+    self._call_model_generate = jax.jit(self._call_model_generate)
     # self._insert_wrap = jax.jit(self._insert_wrap, donate_argnums=(0, 1),
     #                              out_shardings=self.get_decode_state_sharding())
 
@@ -302,13 +303,13 @@ class PyTorchEngineRayWorker():
     caches_res = [c.state() for c in caches]
     return torch_xla2.tensor.unwrap((res, caches_res))
 
-  def _sampling(self, logits: Any, batch_size: int) -> jnp.ndarray:
+  def _sampling(self, logits: Any, batch_size: int) -> np.ndarray:
     if len(logits.shape) == 2:
-      logits = jnp.expand_dims(logits, 0)
+      logits = np.expand_dims(logits, 0)
     return (
-        jnp.argmax(logits[:, -1], axis=-1)
+        np.argmax(logits[:, -1], axis=-1)
         .reshape(batch_size, -1)
-        .astype(jnp.int32)
+        .astype(np.int32)
     )
 
   def prefill(
@@ -368,7 +369,7 @@ class PyTorchEngineRayWorker():
         logits = logits[0]
 
       token = np.argmax(logits[true_length-1])
-      self.prefill = Prefix(token, updated_caches, true_length)
+      self.prefix = Prefix(token, updated_caches, true_length)
       print(f"---------------------------------- token {token}")
     except Exception as e:
       print(f"----------------------------------- Exception {e}. Shutting down")
@@ -580,12 +581,13 @@ class PyTorchEngineRayWorker():
       mask,
       decode_state.input_pos,
     )
+    logits = multihost_utils.process_allgather(logits, tiled=True)
     next_token = self._sampling(logits, self.param.max_batch_size)
     lens = decode_state.lens + 1
-    data = jnp.concatenate(
+    data = np.concatenate(
         [
             decode_state.tokens,
-            jnp.ones_like(next_token),
+            np.ones_like(next_token),
             lens,
         ],
         axis=-1,
@@ -621,9 +623,7 @@ class PyTorchEngineRayWorker():
       self, params: Any, decode_state: DecodeState
   ) -> tuple[None, engine_api.ResultTokens]:
     decode_state, result_tokens = self.generate(self.params, self.decode_state)
-    self.decode_state = decode_state 
-    tokens = multihost_utils.process_allgather(result_tokens.data, tiled=True)  
-    result_tokens.data = np.asarray(tokens)
+    self.decode_state = decode_state
     return None, result_tokens
     
 
