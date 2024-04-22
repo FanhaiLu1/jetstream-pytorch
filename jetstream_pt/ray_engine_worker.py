@@ -178,7 +178,7 @@ class PyTorchEngineRayWorker():
     #     self.replicated,
     #     self.replicated,
     # ))
-    self._call_model_generate = jax.jit(self._call_model_generate)
+    # self._call_model_generate = jax.jit(self._call_model_generate)
     # self._insert_wrap = jax.jit(self._insert_wrap, donate_argnums=(0, 1),
     #                              out_shardings=self.get_decode_state_sharding())
 
