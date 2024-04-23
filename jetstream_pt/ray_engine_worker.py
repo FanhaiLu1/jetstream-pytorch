@@ -165,11 +165,8 @@ class PyTorchEngineRayWorker():
     self.replicated = env.sharding_by_axis(-1) # replicated
     self.cache_sharding = self.y_sharding
 
-    # self._call_model_prefill = jax.jit(self._call_model_prefill)
-    self.insert = jax.jit(self.insert, donate_argnums=(0, 1), out_shardings=self.get_decode_state_sharding())
-    # self.generate = jax.jit(self.generate, donate_argnums=(1, ), out_shardings=(self.get_decode_state_sharding(), None))
     self._call_model_prefill = jax.jit(self._call_model_prefill)
-    # self._call_model_generate = jax.jit(self._call_model_generate)
+    self.insert = jax.jit(self.insert, donate_argnums=(0, 1), out_shardings=self.get_decode_state_sharding())
     self._call_model_generate = jax.jit(self._call_model_generate, out_shardings=(
         self.replicated,
         self.cache_sharding,
@@ -179,14 +176,6 @@ class PyTorchEngineRayWorker():
         self.replicated,
         self.replicated,
     ))
-    
-    # self._insert_wrap = jax.jit(self._insert_wrap, donate_argnums=(0, 1),
-    #                              out_shardings=self.get_decode_state_sharding())
-
-    # self._insert_no_wrap = jax.jit(
-    #      self._insert_no_wrap, 
-    #      donate_argnums=(0, 1), 
-    #      out_shardings=self.get_decode_state_sharding())
     self._lock = threading.RLock()
 
   def sharding_by_name(self, name):
@@ -296,10 +285,10 @@ class PyTorchEngineRayWorker():
     return torch_xla2.tensor.unwrap((res, updated_caches, scales, input_pos + 1, lens + 1, new_current_position, new_mask))
 
 
-  # @functools.partial(
-  #   jax.jit,
-  #   static_argnums=(0, ),
-  # )
+  @functools.partial(
+    jax.jit,
+    static_argnums=(0, ),
+  )
   def _call_model_prefill(self, weights, tokens, input_indexes):
     caches = [
       cache_manager.KVCachePrefill(self.env.enable_kv_quantization) for _ in self.pt_model.layers

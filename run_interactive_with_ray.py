@@ -100,7 +100,7 @@ def main(argv):
   vocab = token_utils.load_vocab(
     metadata.path, metadata.extra_ids)
   stop_tokens = [vocab.eos_id, vocab.pad_id]
-  max_output_length = 10
+  max_output_length = 1024
 
   if _PROFILING_OUTPUT.value:
     jax.profiler.start_trace(_PROFILING_OUTPUT.value)
@@ -152,6 +152,9 @@ def main(argv):
 
     print("---- All output tokens.")
     print(sampled_tokens_list)
+    
+    print("---- All output text.")
+    print(vocab.tokenizer.decode(sampled_tokens_list))
 
 
   if _PROFILING_OUTPUT.value:
