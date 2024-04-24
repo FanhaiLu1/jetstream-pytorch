@@ -81,10 +81,7 @@ def main(argv: Sequence[str]):
   del argv
   os.environ['XLA_FLAGS'] = '--xla_dump_to=/tmp/xla_logs --xla_dump_hlo_as_text'
   # No devices for local cpu test. A None for prefill and a None for generate.
-  devices = server_lib.get_devices()
-  print(f"devices: {devices}")
   engine = ray_je.create_pytorch_engine_ray_master(
-        devices=devices,
         tokenizer_path=_TOKENIZER_PATH.value,
         ckpt_path=_CKPT_PATH.value,
         bf16_enable=_BF16_ENABLE.value,
@@ -103,6 +100,7 @@ def main(argv: Sequence[str]):
 
   # We separate credential from run so that we can unit test it with local credentials.
   # TODO: Add grpc credentials for OSS.
+  devices = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
   jetstream_server = server_lib.run(
       threads=_THREADS.value,
       port=_PORT.value,

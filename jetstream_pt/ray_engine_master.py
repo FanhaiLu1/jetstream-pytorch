@@ -85,7 +85,7 @@ class PyTorchEngineRayMaster(engine_api.Engine):
     
     @property
     def max_concurrent_decodes(self) -> int:
-        return self.max_batch_size
+        return self.batch_size
 
     @property
     def samples_per_slot(self) -> int:
