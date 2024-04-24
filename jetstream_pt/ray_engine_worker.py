@@ -53,6 +53,7 @@ class Prefix:
   token: jax.Array  # [1, seqlen]
   caches: List[Tuple[jax.Array, jax.Array]]
   seq_len: int  # true seqlen front pad
+  
 
 @struct.dataclass
 class DecodeState:
@@ -64,6 +65,15 @@ class DecodeState:
   input_pos: jax.Array # [batch_size, 1] input pos for each slot
   mask: jax.Array # [batch_size, seqlen] -inf for invalid; 0 for valid
 
+@struct.dataclass
+class DecodeStateLogits:
+  logits: jax.Array   # [batch_size, seqlen]
+  caches: List[Tuple[jax.Array, jax.Array]]
+  cache_scales: List[Tuple[jax.Array, jax.Array]]  # only present in quantized kv
+  current_position: int
+  lens: jax.Array # [batch_size, 1]
+  input_pos: jax.Array # [batch_size, 1] input pos for each slot
+  mask: jax.Array # [batch_size, seqlen] -inf for invalid; 0 for valid  
 
 # NOTE model specific
 
@@ -165,9 +175,9 @@ class PyTorchEngineRayWorker():
     self.replicated = env.sharding_by_axis(-1) # replicated
     self.cache_sharding = self.y_sharding
 
-    self._call_model_prefill = jax.jit(self._call_model_prefill)
+    self._call_model_prefill = jax.jit(self._call_model_prefill, out_shardings=(self.replicated, self.cache_sharding))
     self.insert = jax.jit(self.insert, donate_argnums=(0, 1), out_shardings=self.get_decode_state_sharding())
-    self._call_model_generate = jax.jit(self._call_model_generate, out_shardings=(
+    self._call_model_generate = jax.jit(self._call_model_generate, out_shardings=DecodeStateLogits(
         self.replicated,
         self.cache_sharding,
         self.replicated,
@@ -281,8 +291,18 @@ class PyTorchEngineRayWorker():
     scales = []
     if self.env.enable_kv_quantization:
       scales = [c.scalers() for c in caches_obj]
-    new_current_position = (current_position + 1) % self.env.cache_sequence_length  
-    return torch_xla2.tensor.unwrap((res, updated_caches, scales, input_pos + 1, lens + 1, new_current_position, new_mask))
+    new_current_position = (current_position + 1) % self.env.cache_sequence_length
+    new_decode_state = DecodeStateLogits(
+      res, 
+      updated_caches,
+      scales,
+      input_pos + 1,
+      lens + 1,
+      new_current_position,
+      new_mask,
+    )
+    return new_decode_state  
+    # return torch_xla2.tensor.unwrap((res, updated_caches, scales, input_pos + 1, lens + 1, new_current_position, new_mask))
 
 
   @functools.partial(
@@ -346,15 +366,6 @@ class PyTorchEngineRayWorker():
     print("---------------------------------- finish logits.....")
     print("---------------------------------- visualize logits .....")
     
-    # truncate to true_length didnt work need to be out side of jit
-    # caches = [
-    #   (jax.lax.dynamic_slice_in_dim(
-    #       k, seq_len - true_length, true_length, axis=2),
-    #    jax.lax.dynamic_slice_in_dim(
-    #       v, seq_len - true_length, true_length, axis=2))
-    #   for k, v in updated_caches
-    # ]
-    # return Prefix(token, updated_caches, true_length)
     return logits, updated_caches
   
   def prefill_ray(
@@ -567,13 +578,66 @@ class PyTorchEngineRayWorker():
     self.prefix = None
     return None   
 
+  # def generate(
+  #     self, params: Any, decode_state: DecodeState
+  # ) -> tuple[DecodeState, engine_api.ResultTokens]:
+  #   #seq_len = padded_tokens.shape[0]
+
+  #   # fill mask first
+  #   logits, new_caches, new_scales, new_input_pos, new_lens, new_current_position, new_mask = self._call_model_generate(
+  #     self.params, 
+  #     decode_state.tokens, 
+  #     decode_state.caches, 
+  #     decode_state.cache_scales,
+  #     decode_state.mask,
+  #     decode_state.current_position,
+  #     decode_state.input_pos,
+  #     decode_state.lens,
+  #   )
+  #   logits = multihost_utils.process_allgather(logits, tiled=True)
+  #   next_token = self._sampling(logits, self.param.max_batch_size)
+    
+  #   data = np.concatenate(
+  #       [
+  #           decode_state.tokens,
+  #           np.ones_like(next_token),
+  #           new_lens,
+  #       ],
+  #       axis=-1,
+  #   )
+
+  #   # [0] is the batch dimension, [1] normally should be 1
+  #   length = next_token.shape[1]
+  #   result_tokens = engine_api.ResultTokens(
+  #       data=data,
+  #       tokens_idx=(0, length),
+  #       valid_idx=(length, 2 * length),
+  #       length_idx=(2 * length, 2 * length + 1),
+  #       samples_per_slot=1,
+  #   )
+
+    
+  #   new_decode_state = DecodeState(
+  #     next_token, 
+  #     new_caches,
+  #     new_scales,
+  #     new_current_position,
+  #     new_lens,
+  #     new_input_pos,
+  #     new_mask,
+  #   )
+  #   print('new_pos', new_current_position)
+  #   print('cache_seq_len', self.env.cache_sequence_length)
+
+  #   return new_decode_state, result_tokens
+  
   def generate(
       self, params: Any, decode_state: DecodeState
   ) -> tuple[DecodeState, engine_api.ResultTokens]:
     #seq_len = padded_tokens.shape[0]
 
     # fill mask first
-    logits, new_caches, new_scales, new_input_pos, new_lens, new_current_position, new_mask = self._call_model_generate(
+    new_decode_state_logigts= self._call_model_generate(
       self.params, 
       decode_state.tokens, 
       decode_state.caches, 
@@ -583,14 +647,14 @@ class PyTorchEngineRayWorker():
       decode_state.input_pos,
       decode_state.lens,
     )
-    logits = multihost_utils.process_allgather(logits, tiled=True)
+    logits = multihost_utils.process_allgather(new_decode_state_logigts.logits, tiled=True)
     next_token = self._sampling(logits, self.param.max_batch_size)
     
     data = np.concatenate(
         [
             decode_state.tokens,
             np.ones_like(next_token),
-            new_lens,
+            new_decode_state_logigts.lens,
         ],
         axis=-1,
     )
@@ -608,14 +672,14 @@ class PyTorchEngineRayWorker():
     
     new_decode_state = DecodeState(
       next_token, 
-      new_caches,
-      new_scales,
-      new_current_position,
-      new_lens,
-      new_input_pos,
-      new_mask,
+      new_decode_state_logigts.caches,
+      new_decode_state_logigts.scales,
+      new_decode_state_logigts.current_position,
+      new_decode_state_logigts.lens,
+      new_decode_state_logigts.input_pos,
+      new_decode_state_logigts.mask,
     )
-    print('new_pos', new_current_position)
+    print('new_pos', new_decode_state_logigts.current_position)
     print('cache_seq_len', self.env.cache_sequence_length)
 
     return new_decode_state, result_tokens
