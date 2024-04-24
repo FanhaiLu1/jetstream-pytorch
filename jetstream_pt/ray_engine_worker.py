@@ -177,7 +177,7 @@ class PyTorchEngineRayWorker():
 
     self._call_model_prefill = jax.jit(self._call_model_prefill, out_shardings=(self.replicated, self.cache_sharding))
     self.insert = jax.jit(self.insert, donate_argnums=(0, 1), out_shardings=self.get_decode_state_sharding())
-    self._call_model_generate = jax.jit(self._call_model_generate, out_shardings=DecodeStateLogits(
+    self._call_model_generate = jax.jit(self._call_model_generate, out_shardings=(
         self.replicated,
         self.cache_sharding,
         self.replicated,
@@ -292,17 +292,8 @@ class PyTorchEngineRayWorker():
     if self.env.enable_kv_quantization:
       scales = [c.scalers() for c in caches_obj]
     new_current_position = (current_position + 1) % self.env.cache_sequence_length
-    new_decode_state = DecodeStateLogits(
-      res, 
-      updated_caches,
-      scales,
-      input_pos + 1,
-      lens + 1,
-      new_current_position,
-      new_mask,
-    )
-    return new_decode_state  
-    # return torch_xla2.tensor.unwrap((res, updated_caches, scales, input_pos + 1, lens + 1, new_current_position, new_mask))
+ 
+    return torch_xla2.tensor.unwrap((res, updated_caches, scales, input_pos + 1, lens + 1, new_current_position, new_mask))
 
 
   @functools.partial(
@@ -578,66 +569,13 @@ class PyTorchEngineRayWorker():
     self.prefix = None
     return None   
 
-  # def generate(
-  #     self, params: Any, decode_state: DecodeState
-  # ) -> tuple[DecodeState, engine_api.ResultTokens]:
-  #   #seq_len = padded_tokens.shape[0]
-
-  #   # fill mask first
-  #   logits, new_caches, new_scales, new_input_pos, new_lens, new_current_position, new_mask = self._call_model_generate(
-  #     self.params, 
-  #     decode_state.tokens, 
-  #     decode_state.caches, 
-  #     decode_state.cache_scales,
-  #     decode_state.mask,
-  #     decode_state.current_position,
-  #     decode_state.input_pos,
-  #     decode_state.lens,
-  #   )
-  #   logits = multihost_utils.process_allgather(logits, tiled=True)
-  #   next_token = self._sampling(logits, self.param.max_batch_size)
-    
-  #   data = np.concatenate(
-  #       [
-  #           decode_state.tokens,
-  #           np.ones_like(next_token),
-  #           new_lens,
-  #       ],
-  #       axis=-1,
-  #   )
-
-  #   # [0] is the batch dimension, [1] normally should be 1
-  #   length = next_token.shape[1]
-  #   result_tokens = engine_api.ResultTokens(
-  #       data=data,
-  #       tokens_idx=(0, length),
-  #       valid_idx=(length, 2 * length),
-  #       length_idx=(2 * length, 2 * length + 1),
-  #       samples_per_slot=1,
-  #   )
-
-    
-  #   new_decode_state = DecodeState(
-  #     next_token, 
-  #     new_caches,
-  #     new_scales,
-  #     new_current_position,
-  #     new_lens,
-  #     new_input_pos,
-  #     new_mask,
-  #   )
-  #   print('new_pos', new_current_position)
-  #   print('cache_seq_len', self.env.cache_sequence_length)
-
-  #   return new_decode_state, result_tokens
-  
   def generate(
       self, params: Any, decode_state: DecodeState
   ) -> tuple[DecodeState, engine_api.ResultTokens]:
     #seq_len = padded_tokens.shape[0]
 
     # fill mask first
-    new_decode_state_logigts= self._call_model_generate(
+    logits, new_caches, new_scales, new_input_pos, new_lens, new_current_position, new_mask = self._call_model_generate(
       self.params, 
       decode_state.tokens, 
       decode_state.caches, 
@@ -647,14 +585,14 @@ class PyTorchEngineRayWorker():
       decode_state.input_pos,
       decode_state.lens,
     )
-    logits = multihost_utils.process_allgather(new_decode_state_logigts.logits, tiled=True)
+    logits = multihost_utils.process_allgather(logits, tiled=True)
     next_token = self._sampling(logits, self.param.max_batch_size)
     
     data = np.concatenate(
         [
             decode_state.tokens,
             np.ones_like(next_token),
-            new_decode_state_logigts.lens,
+            new_lens,
         ],
         axis=-1,
     )
@@ -672,14 +610,14 @@ class PyTorchEngineRayWorker():
     
     new_decode_state = DecodeState(
       next_token, 
-      new_decode_state_logigts.caches,
-      new_decode_state_logigts.scales,
-      new_decode_state_logigts.current_position,
-      new_decode_state_logigts.lens,
-      new_decode_state_logigts.input_pos,
-      new_decode_state_logigts.mask,
+      new_caches,
+      new_scales,
+      new_current_position,
+      new_lens,
+      new_input_pos,
+      new_mask,
     )
-    print('new_pos', new_decode_state_logigts.current_position)
+    print('new_pos', new_current_position)
     print('cache_seq_len', self.env.cache_sequence_length)
 
     return new_decode_state, result_tokens
