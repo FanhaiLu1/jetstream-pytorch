@@ -142,7 +142,7 @@ def main(argv):
         break
 
       sampled_tokens_list.append(token_id)
-      print(f"------------------------------- token_id {token_id}")
+      # print(f"------------------------------- token_id {token_id}")
       output = token_utils.mix_decode(vocab, token_id)
       print(Fore.GREEN + output, end="", flush=True)
 

@@ -176,7 +176,15 @@ class PyTorchEngineRayWorker():
     self.cache_sharding = self.y_sharding
 
     self._call_model_prefill = jax.jit(self._call_model_prefill, out_shardings=(self.replicated, self.cache_sharding))
-    self.insert = jax.jit(self.insert, donate_argnums=(0, 1), out_shardings=self.get_decode_state_sharding())
+    self.insert = jax.jit(self.insert, donate_argnums=(0, 1), out_shardings=(
+        self.replicated,
+        self.cache_sharding,
+        self.replicated,
+        self.replicated,
+        self.replicated,
+        self.replicated,
+        self.replicated,
+    ))
     self._call_model_generate = jax.jit(self._call_model_generate, out_shardings=(
         self.replicated,
         self.cache_sharding,
@@ -453,14 +461,14 @@ class PyTorchEngineRayWorker():
         scales.append((kscale, vscale))
 
     lens = decode_state.lens.at[slot].set(1)
-    return DecodeState(
-      tokens, 
-      caches, 
-      scales, 
-      decode_state.current_position, 
-      lens, 
-      input_pos,
-      mask)
+    return (tokens,
+            caches,
+            scales, 
+            decode_state.current_position, 
+            lens, 
+            input_pos,
+            mask
+            )
 
 
   def _insert_wrap(
@@ -531,14 +539,14 @@ class PyTorchEngineRayWorker():
         scales.append((kscale, vscale))
 
     lens = decode_state.lens.at[slot].set(1)
-    return DecodeState(
-      tokens, 
-      caches, 
-      scales, 
-      decode_state.current_position, 
-      lens,
-      input_pos,
-      mask)
+    return (tokens,
+            caches,
+            scales, 
+            decode_state.current_position, 
+            lens, 
+            input_pos,
+            mask
+            )
 
   def insert(
       self,
@@ -553,11 +561,19 @@ class PyTorchEngineRayWorker():
     # )
     start_insert = decode_state.current_position - prefix.seq_len
     end_insert = start_insert + prefix.caches[0][0].shape[2] # padded seclen
-    return jax.lax.cond(
+    tokens, caches, scales, current_position, lens, input_pos, mask = jax.lax.cond(
         jnp.logical_and(start_insert >= 0, end_insert < self.env.cache_sequence_length),
         self._insert_no_wrap,
         self._insert_wrap,
         prefix, decode_state, slot)
+    return DecodeState(tokens,
+            caches,
+            scales, 
+            current_position, 
+            lens, 
+            input_pos,
+            mask
+            )
  
   def insert_ray(
       self,
