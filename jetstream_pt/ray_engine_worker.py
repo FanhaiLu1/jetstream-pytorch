@@ -14,6 +14,7 @@
 
 """Implement Jet Engine API."""
 
+import queue
 from typing import Any, List, Optional, Tuple, Union
 import threading
 import functools
@@ -163,6 +164,7 @@ class PyTorchEngineRayWorker():
     print('Number of param: ', num_params)
     
     
+    self.prefix_queue = queue.Queue()
     self.pt_model = pt_model
     self.env = env
     self.default_dtype = jnp.bfloat16 if env.bf16_enable else jnp.float32
@@ -394,7 +396,8 @@ class PyTorchEngineRayWorker():
         logits = logits[0]
 
       token = np.argmax(logits[true_length-1])
-      self.prefix = Prefix(token, updated_caches, true_length)
+      prefix = Prefix(token, updated_caches, true_length)
+      self.prefix_queue.put(prefix)
       print(f"---------------------------------- token {token}")
     except Exception as e:
       print(f"----------------------------------- Exception {e}. Shutting down")
@@ -592,8 +595,8 @@ class PyTorchEngineRayWorker():
       decode_state: DecodeState,
       slot: int,
   ) -> DecodeState:
-    self.decode_state = self.insert(self.prefix, self.decode_state, slot)
-    self.prefix = None
+    prefix = self.prefix_queue.get_nowait()
+    self.decode_state = self.insert(prefix, self.decode_state, slot)
     return None   
 
   def generate(
