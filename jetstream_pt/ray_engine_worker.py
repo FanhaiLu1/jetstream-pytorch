@@ -178,17 +178,7 @@ class PyTorchEngineRayWorker():
     self.cache_sharding = self.y_sharding
 
     self._call_model_prefill = jax.jit(self._call_model_prefill, out_shardings=(self.replicated, self.cache_sharding))
-    self._insert_no_wrap = jax.jit(self._insert_no_wrap, donate_argnums=(0, 1), out_shardings=(
-        self.replicated,
-        self.cache_sharding,
-        self.replicated,
-        self.replicated,
-        self.replicated,
-        self.replicated,
-        self.replicated,
-    ))
-    
-    self._insert_wrap = jax.jit(self._insert_wrap, donate_argnums=(0, 1), out_shardings=(
+    self._insert = jax.jit(self._insert, donate_argnums=(0, 1), out_shardings=(
         self.replicated,
         self.cache_sharding,
         self.replicated,
@@ -562,6 +552,18 @@ class PyTorchEngineRayWorker():
             mask
             )
 
+  def _insert(self,
+        prefix: Prefix,
+        decode_state: DecodeState,
+        slot: int,):
+    start_insert = decode_state.current_position - prefix.seq_len
+    end_insert = start_insert + prefix.caches[0][0].shape[2] # padded seclen
+    return jax.lax.cond(
+        jnp.logical_and(start_insert >= 0, end_insert < self.env.cache_sequence_length),
+        self._insert_no_wrap,
+        self._insert_wrap,
+        prefix, decode_state, slot)
+    
   def insert(
       self,
       prefix: Prefix,
@@ -573,13 +575,7 @@ class PyTorchEngineRayWorker():
     #     prefix,
     #     decode_state,
     # )
-    start_insert = decode_state.current_position - prefix.seq_len
-    end_insert = start_insert + prefix.caches[0][0].shape[2] # padded seclen
-    tokens, caches, scales, current_position, lens, input_pos, mask = jax.lax.cond(
-        jnp.logical_and(start_insert >= 0, end_insert < self.env.cache_sequence_length),
-        self._insert_no_wrap,
-        self._insert_wrap,
-        prefix, decode_state, slot)
+    tokens, caches, scales, current_position, lens, input_pos, mask = self._insert(prefix, decode_state, slot)
     return DecodeState(tokens,
             caches,
             scales, 
