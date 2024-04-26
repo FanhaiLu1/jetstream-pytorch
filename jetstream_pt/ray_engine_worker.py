@@ -386,7 +386,7 @@ class PyTorchEngineRayWorker():
 
       token = np.argmax(logits[true_length-1])
       prefix = Prefix(token, updated_caches, true_length)
-      self.prefix_queue.put(prefix, bool=False)
+      self.prefix_queue.put(prefix, block=False)
       print(f"---------------------------------- token {token}")
     except Exception as e:
       print(f"----------------------------------- Exception {e}. Shutting down")

@@ -123,7 +123,7 @@ def create_pytorch_engine_ray_master(
     max_cache_length = 1024,
 ) -> PyTorchEngineRayMaster:
     
-    ray.init(num_cpus=100, ignore_reinit_error=True)
+    ray.init(ignore_reinit_error=True)
     pod_name = tpu.get_current_pod_name()
     num_hosts = tpu.get_current_pod_worker_count()
     print(f"pod_name:{pod_name}, number of host: {num_hosts}")

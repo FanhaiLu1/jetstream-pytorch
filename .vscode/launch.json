@@ -10,8 +10,8 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": "--param_size=7b --batch_size=96 --max_cache_length=2048 --quantize_weights=False --quantize_kv_cache=False --checkpoint_path=/home/fanhai/data/llama-2-7b-chat-safetensor/model.safetensors --tokenizer_path=/home/fanhai/data/tokenizer.model --platform=tpu=16"
-            // "args": "--size=7b --batch_size=96 --max_cache_length=2048 --quantize_weights=False --quantize_kv_cache=False --checkpoint_path=/home/fanhai/data/llama-2-7b-chat-safetensor/model.safetensors --tokenizer_path=/home/fanhai/data/tokenizer.model"
+            // "args": "--param_size=7b --batch_size=96 --max_cache_length=2048 --quantize_weights=False --quantize_kv_cache=False --checkpoint_path=/home/fanhai/data/llama-2-7b-chat-safetensor/model.safetensors --tokenizer_path=/home/fanhai/data/tokenizer.model --platform=tpu=16"
+            "args": "--size=7b --batch_size=96 --max_cache_length=2048 --quantize_weights=False --quantize_kv_cache=False --checkpoint_path=/home/fanhai/data/llama-2-7b-chat-safetensor/model.safetensors --tokenizer_path=/home/fanhai/data/tokenizer.model"
         }
         
     ]
