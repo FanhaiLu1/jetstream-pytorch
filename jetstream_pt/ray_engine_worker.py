@@ -779,5 +779,94 @@ class PyTorchEngineRayWorker:
       print(f"Name: {k}, shape: {v.shape} x {v.dtype}")
 
     return weights
+  
+  
+  
+  
+  
+  
+ 
+ 
+  
 
+  # pylint: disable-next=all
+  def load_params(self) -> Params:
+    # We want to fix this: load from files
+    with jax.default_device(self.colocated_cpus):
+      if self.env.checkpoint_path:
+        if self.env.checkpoint_format == "safetensors":
+          return self._load_from_safetensors(self.env.checkpoint_path)
+      else:
+        jax_weights = self._make_state_dict_jax(self.pt_model.state_dict())
+    jax_weights = {
+        key: jax.device_put(value, self.sharding_by_name(key))
+        for key, value in jax_weights.items()
+    }
+    for k, v in jax_weights.items():
+      if k.startswith("layers") and not k.startswith("layers.0"):
+        continue
+      print(f"Name: {k}, shape: {v.shape} x {v.dtype}")
+    return jax_weights
 
+  def load_params_ray(self):
+    """load params in ray worker"""
+    print("--- mem_usage before load params")
+    self.print_mem_usage()
+    self.params = self.load_params()  # pylint: disable=attribute-defined-outside-init
+    print("--- mem_usage after load params")
+    self.print_mem_usage()
+
+  @property
+  def colocated_cpus(self) -> Union[list[engine_api.CpuDevices], None]:
+    """cpu device"""
+    return jax.devices("cpu")[0]
+
+  def get_prefix_destination_sharding(self) -> Prefix:
+    """Returns the shardings necessary to transfer data between engines."""
+    return Prefix(
+        self.replicated,
+        self.cache_sharding,
+        self.replicated,
+    )
+
+  def get_decode_state_sharding(self) -> DecodeState:
+    """Gets the shardings corresponding to the decode state."""
+    return DecodeState(
+        self.replicated,
+        self.cache_sharding,
+        self.replicated,
+        self.replicated,
+        self.replicated,
+        self.replicated,
+        self.replicated,
+    )
+
+  def get_prefix_sequence_ddim(self) -> Any:
+    """Returns the index of the sequence dim in the prefix type."""
+    return self.get_prefix_destination_sharding()
+
+  @property
+  def max_concurrent_decodes(self) -> int:
+    """Max batch size for decodes"""
+    return self.param.max_batch_size
+
+  @property
+  def samples_per_slot(self) -> int:
+    """Samples per slot"""
+    return 1
+
+  @property
+  def max_prefill_length(self) -> int:
+    """Maximum prefill length"""
+    return self.param.max_seq_len
+
+  @property
+  def max_decode_length(self) -> int:
+    """Maximum decode length"""
+    # pylint: disable-next=all
+    return self.env._data.max_decode_length
+
+  @property
+  def mesh(self):
+    """return mesh"""
+    return None
