@@ -841,9 +841,6 @@ class PyTorchEngineRayWorker:
         self.replicated,
     )
 
-  def get_prefix_sequence_ddim(self) -> Any:
-    """Returns the index of the sequence dim in the prefix type."""
-    return self.get_prefix_destination_sharding()
 
   @property
   def max_concurrent_decodes(self) -> int:
@@ -866,3 +863,7 @@ class PyTorchEngineRayWorker:
     # pylint: disable-next=all
     return self.env._data.max_decode_length
 
+  @property
+  def mesh(self):
+    """return mesh"""
+    return None
