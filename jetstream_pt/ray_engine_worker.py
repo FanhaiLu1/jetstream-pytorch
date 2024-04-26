@@ -821,25 +821,7 @@ class PyTorchEngineRayWorker:
     """cpu device"""
     return jax.devices("cpu")[0]
 
-  def get_prefix_destination_sharding(self) -> Prefix:
-    """Returns the shardings necessary to transfer data between engines."""
-    return Prefix(
-        self.replicated,
-        self.cache_sharding,
-        self.replicated,
-    )
 
-  def get_decode_state_sharding(self) -> DecodeState:
-    """Gets the shardings corresponding to the decode state."""
-    return DecodeState(
-        self.replicated,
-        self.cache_sharding,
-        self.replicated,
-        self.replicated,
-        self.replicated,
-        self.replicated,
-        self.replicated,
-    )
 
 
 
