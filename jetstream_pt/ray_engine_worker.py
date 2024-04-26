@@ -789,41 +789,4 @@ class PyTorchEngineRayWorker:
  
   
 
-  # pylint: disable-next=all
-  def load_params(self) -> Params:
-    # We want to fix this: load from files
-    with jax.default_device(self.colocated_cpus):
-      if self.env.checkpoint_path:
-        if self.env.checkpoint_format == "safetensors":
-          return self._load_from_safetensors(self.env.checkpoint_path)
-      else:
-        jax_weights = self._make_state_dict_jax(self.pt_model.state_dict())
-    jax_weights = {
-        key: jax.device_put(value, self.sharding_by_name(key))
-        for key, value in jax_weights.items()
-    }
-    for k, v in jax_weights.items():
-      if k.startswith("layers") and not k.startswith("layers.0"):
-        continue
-      print(f"Name: {k}, shape: {v.shape} x {v.dtype}")
-    return jax_weights
-
-  def load_params_ray(self):
-    """load params in ray worker"""
-    print("--- mem_usage before load params")
-    self.print_mem_usage()
-    self.params = self.load_params()  # pylint: disable=attribute-defined-outside-init
-    print("--- mem_usage after load params")
-    self.print_mem_usage()
-
-  @property
-  def colocated_cpus(self) -> Union[list[engine_api.CpuDevices], None]:
-    """cpu device"""
-    return jax.devices("cpu")[0]
-
-
-
-
-
-
- 
+  
