@@ -275,6 +275,7 @@ class PyTorchEngineRayWorker():
     input_pos,
     lens,
   ):
+    jax.profiler.start_trace("/tmp/")
     pos = current_position
     input_indexes = jnp.full((1,), pos) 
     new_mask = mask.at[:, current_position].set(0)
@@ -346,7 +347,6 @@ class PyTorchEngineRayWorker():
       padded_tokens: PrefillInputs,  # PrefillInputs[np.ndarray],
       true_length: int
   ) -> Any:
-    print("---------------------------------- enter.....")
     padded_tokens = jnp.asarray(padded_tokens)
     if isinstance(padded_tokens, jax.Array):
       batched_token = padded_tokens.reshape(1, -1)
@@ -363,11 +363,7 @@ class PyTorchEngineRayWorker():
       input_indexes,
     )
 
-    jax.debug.visualize_array_sharding(logits)
     logits = multihost_utils.process_allgather(logits, tiled=True)
-    print("---------------------------------- finish logits.....")
-    print("---------------------------------- visualize logits .....")
-    
     return logits, updated_caches
   
   def prefill_ray(
@@ -379,15 +375,15 @@ class PyTorchEngineRayWorker():
       true_length: int
   ) -> None:
     
-    print("---------------------------------- enter prefill_ray ")
     try:
+      print(f"do prefill ---------")
       logits, updated_caches = self.prefill(params=params, existing_prefix=existing_prefix, padded_tokens=padded_tokens, true_length=true_length)
       if len(logits.shape) == 3: # b, seqlen, num words
         logits = logits[0]
 
       token = np.argmax(logits[true_length-1])
       prefix = Prefix(token, updated_caches, true_length)
-      self.prefix_queue.put(prefix)
+      self.prefix_queue.put(prefix, bool=False)
       print(f"---------------------------------- token {token}")
     except Exception as e:
       print(f"----------------------------------- Exception {e}. Shutting down")
