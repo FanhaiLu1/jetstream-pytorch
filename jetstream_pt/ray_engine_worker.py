@@ -774,7 +774,7 @@ class PyTorchEngineRayWorker:
   # pylint: disable-next=all
   def load_params(self) -> Params:
     # We want to fix this: load from files
-    with jax.default_device(self.colocated_cpus):
+    with jax.default_device(self.colocated_cpus()):
       if self.env.checkpoint_path:
         if self.env.checkpoint_format == "safetensors":
           return self._load_from_safetensors(self.env.checkpoint_path)
@@ -798,7 +798,6 @@ class PyTorchEngineRayWorker:
     print("--- mem_usage after load params")
     self.print_mem_usage()
 
-  @property
   def colocated_cpus(self) -> Union[list[engine_api.CpuDevices], None]:
     """cpu device"""
     return jax.devices("cpu")[0]
