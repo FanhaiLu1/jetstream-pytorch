@@ -842,15 +842,7 @@ class PyTorchEngineRayWorker:
     )
 
 
-  @property
-  def max_concurrent_decodes(self) -> int:
-    """Max batch size for decodes"""
-    return self.param.max_batch_size
 
-  @property
-  def samples_per_slot(self) -> int:
-    """Samples per slot"""
-    return 1
 
   @property
   def max_prefill_length(self) -> int:
