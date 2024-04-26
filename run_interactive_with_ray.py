@@ -116,7 +116,7 @@ def main(argv):
   for prompt in prompts:
     # slot = random.randint(0, _BATCH_SIZE.value - 1) 
     slot = 0
-    tokens, true_length = token_utils.tokenize_and_pad(prompt, vocab, is_bos=True)
+    tokens, true_length = token_utils.tokenize_and_pad(prompt, vocab, is_bos=True, jax_padding=False)
     print(f"---- Input prompts are: {prompt}")
     print(f"---- Encoded tokens are: {tokens}")
 
@@ -143,11 +143,11 @@ def main(argv):
 
       sampled_tokens_list.append(token_id)
       # print(f"------------------------------- token_id {token_id}")
-      output = token_utils.mix_decode(vocab, token_id)
-      print(Fore.GREEN + output, end="", flush=True)
+    #   output = token_utils.mix_decode(vocab, token_id)
+    #   print(Fore.GREEN + output, end="", flush=True)
 
-    print(Style.RESET_ALL + "\n")
-    print("---- Streaming decode finished.")
+    # print(Style.RESET_ALL + "\n")
+    # print("---- Streaming decode finished.")
 
 
     print("---- All output tokens.")

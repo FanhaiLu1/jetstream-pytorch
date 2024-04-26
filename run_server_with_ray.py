@@ -106,6 +106,7 @@ def main(argv: Sequence[str]):
       port=_PORT.value,
       config=server_config,
       devices=devices,
+      jax_padding=False
   )
   print("Started jetstream_server....") 
   jetstream_server.wait_for_termination()
