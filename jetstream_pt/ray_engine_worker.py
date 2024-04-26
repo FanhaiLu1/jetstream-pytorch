@@ -277,7 +277,7 @@ class PyTorchEngineRayWorker():
   ):
     print(f"----------------------> jax devices id: {jax.local_devices()[0].id}" )
     if jax.local_devices()[0].id == 0:
-      print(f"----------------------> profiler jax devices id: {jax.devices()[0].id}" )
+      print(f"----------------------> profiler jax devices id: {jax.local_devices()[0].id}" )
       jax.profiler.start_trace("/home/fanhai/")
     pos = current_position
     input_indexes = jnp.full((1,), pos) 
