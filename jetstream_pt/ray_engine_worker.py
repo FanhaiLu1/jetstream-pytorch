@@ -275,8 +275,8 @@ class PyTorchEngineRayWorker():
     input_pos,
     lens,
   ):
-    print(f"----------------------> jax devices id: {jax.devices()[0].id}" )
-    if jax.devices()[0].id == 0:
+    print(f"----------------------> jax devices id: {jax.local_devices()[0].id}" )
+    if jax.local_devices()[0].id == 0:
       print(f"----------------------> profiler jax devices id: {jax.devices()[0].id}" )
       jax.profiler.start_trace("/tmp/")
     pos = current_position
