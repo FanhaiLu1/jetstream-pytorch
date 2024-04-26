@@ -21,7 +21,7 @@ import humanize
 
 
 from etils import epath
-from safetensors import safe_open
+import safetensors
 from flax import struct
 import jax
 from jax import numpy as jnp
@@ -749,7 +749,7 @@ class PyTorchEngineRayWorker:
   def _load_from_safetensors(self, path):
 
     weights = {}
-    with safe_open(path, framework="flax", device="cpu") as f:
+    with safetensors.safe_open(path, framework="flax", device="cpu") as f:
       for key, model_weights in self.pt_model.state_dict().items():
         if key == "freqs_cis":
           continue
