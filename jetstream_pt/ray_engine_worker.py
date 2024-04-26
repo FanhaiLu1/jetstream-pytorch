@@ -844,18 +844,4 @@ class PyTorchEngineRayWorker:
 
 
 
-  @property
-  def max_prefill_length(self) -> int:
-    """Maximum prefill length"""
-    return self.param.max_seq_len
-
-  @property
-  def max_decode_length(self) -> int:
-    """Maximum decode length"""
-    # pylint: disable-next=all
-    return self.env._data.max_decode_length
-
-  @property
-  def mesh(self):
-    """return mesh"""
-    return None
+ 
