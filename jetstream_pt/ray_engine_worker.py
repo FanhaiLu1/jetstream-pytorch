@@ -188,7 +188,7 @@ class PyTorchEngineRayWorker():
         self.replicated,
     ))
     
-    self._call_model_generate = jax.jit(self._call_model_generate, donate_argnums=(0, 1, 2, 3, 4, 5, 6, 7), out_shardings=(
+    self._call_model_generate = jax.jit(self._call_model_generate, donate_argnums=(1, 2, 3, 4, 5, 6, 7), out_shardings=(
         self.replicated,
         self.cache_sharding,
         self.replicated,
