@@ -277,8 +277,7 @@ class PyTorchEngineRayWorker:
       used = stats["bytes_in_use"]
       limit = stats["bytes_limit"]
       print(
-          f"""--- memory using {fmt_size(used)} /
-            {fmt_size(limit)} ({used/limit:%}) on {d}"""
+          f"memory using {fmt_size(used)} / {fmt_size(limit)} ({used/limit:%}) on {d}"
       )
 
   def init_decode_state_ray(
@@ -712,7 +711,6 @@ class PyTorchEngineRayWorker:
   ) -> tuple[None, engine_api.ResultTokens]:
     decode_state, result_tokens = self.generate(self.params, self.decode_state)
     self.decode_state = decode_state
-    self.print_mem_usage()
     return None, result_tokens
 
   # pylint: disable-next=all
