@@ -20,7 +20,8 @@ import threading
 import functools
 import humanize
 
-
+from etils import epath
+from safetensors import safe_open
 from flax import struct
 import jax
 from jax import numpy as jnp
@@ -101,6 +102,7 @@ class PyTorchEngineRayWorker:
       max_cache_length=1024,
   ):
 
+    print("------------------------> inside engine worker")
     jax.config.update("jax_default_prng_impl", "unsafe_rbg")
     jax.config.update("jax_dynamic_shapes", False)
     # Pytorch exports has int64 constants.
@@ -108,6 +110,7 @@ class PyTorchEngineRayWorker:
     jax.config.update("jax_traceback_filtering", "off")
     torch_dtype = torch.bfloat16 if bf16_enable else torch.float32
     torch.set_default_dtype(torch_dtype)
+    print("------------------------> jax get devices")
     self.devices = jax.devices()
     device_count = jax.device_count()
     local_device_count = jax.local_device_count()
