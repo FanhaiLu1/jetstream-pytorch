@@ -120,7 +120,7 @@ def main(argv):
   for prompt in prompts:
     slot = random.randint(0, _BATCH_SIZE.value)
     tokens, true_length = token_utils.tokenize_and_pad(
-        prompt, vocab, is_bos=True
+        prompt, vocab, is_bos=True, jax_padding=False
     )
     print(f"---- Input prompts are: {prompt}")
     print(f"---- Encoded tokens are: {tokens}")

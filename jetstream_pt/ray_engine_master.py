@@ -145,7 +145,8 @@ def create_pytorch_engine_ray_master(
       resources={"TPU": 4}
   )
   engine_workers = []
-  for _ in range(num_hosts):
+  for i in range(num_hosts):
+    print(f"--------------{i}")
     engine_worker = engine_worker_with_tpu_resource.remote(
         tokenizer_path=tokenizer_path,
         ckpt_path=ckpt_path,
