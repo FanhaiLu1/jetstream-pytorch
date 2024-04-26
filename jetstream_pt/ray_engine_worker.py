@@ -791,10 +791,7 @@ class PyTorchEngineRayWorker:
 
 
 
-  @property
-  def colocated_cpus(self) -> Union[list[engine_api.CpuDevices], None]:
-    """cpu device"""
-    return jax.devices("cpu")[0]
+
 
 
 
