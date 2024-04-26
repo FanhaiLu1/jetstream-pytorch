@@ -275,7 +275,10 @@ class PyTorchEngineRayWorker():
     input_pos,
     lens,
   ):
-    jax.profiler.start_trace("/tmp/")
+    print(f"----------------------> jax devices id: {jax.devices()[0].id}" )
+    if jax.devices()[0].id == 0:
+      print(f"----------------------> profiler jax devices id: {jax.devices()[0].id}" )
+      jax.profiler.start_trace("/tmp/")
     pos = current_position
     input_indexes = jnp.full((1,), pos) 
     new_mask = mask.at[:, current_position].set(0)
