@@ -815,3 +815,54 @@ class PyTorchEngineRayWorker:
     self.params = self.load_params()  # pylint: disable=attribute-defined-outside-init
     print("--- mem_usage after load params")
     self.print_mem_usage()
+
+  @property
+  def colocated_cpus(self) -> Union[list[engine_api.CpuDevices], None]:
+    """cpu device"""
+    return jax.devices("cpu")[0]
+
+  def get_prefix_destination_sharding(self) -> Prefix:
+    """Returns the shardings necessary to transfer data between engines."""
+    return Prefix(
+        self.replicated,
+        self.cache_sharding,
+        self.replicated,
+    )
+
+  def get_decode_state_sharding(self) -> DecodeState:
+    """Gets the shardings corresponding to the decode state."""
+    return DecodeState(
+        self.replicated,
+        self.cache_sharding,
+        self.replicated,
+        self.replicated,
+        self.replicated,
+        self.replicated,
+        self.replicated,
+    )
+
+  def get_prefix_sequence_ddim(self) -> Any:
+    """Returns the index of the sequence dim in the prefix type."""
+    return self.get_prefix_destination_sharding()
+
+  @property
+  def max_concurrent_decodes(self) -> int:
+    """Max batch size for decodes"""
+    return self.param.max_batch_size
+
+  @property
+  def samples_per_slot(self) -> int:
+    """Samples per slot"""
+    return 1
+
+  @property
+  def max_prefill_length(self) -> int:
+    """Maximum prefill length"""
+    return self.param.max_seq_len
+
+  @property
+  def max_decode_length(self) -> int:
+    """Maximum decode length"""
+    # pylint: disable-next=all
+    return self.env._data.max_decode_length
+
