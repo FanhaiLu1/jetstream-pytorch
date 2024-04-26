@@ -300,9 +300,9 @@ class PyTorchEngineRayWorker():
       tokens, input_pos, caches_obj, mask 
     )
     paramst, argst = torch_xla2.tensor.wrap((weights, args))
-    with self._lock:
-      with torch_xla2.tensor.XLADispatchMode():
-        res = torch.func.functional_call(self.pt_model, paramst, argst)
+    # with self._lock:
+    with torch_xla2.tensor.XLADispatchMode():
+      res = torch.func.functional_call(self.pt_model, paramst, argst)
     updated_caches = [c.state() for c in caches_obj]
     scales = []
     if self.env.enable_kv_quantization:
@@ -328,9 +328,9 @@ class PyTorchEngineRayWorker():
     )
 
     paramst, argst = torch_xla2.tensor.wrap((weights, args))
-    with self._lock:
-      with torch_xla2.tensor.XLADispatchMode():
-        res = torch.func.functional_call(self.pt_model, paramst, argst)[0]
+    #with self._lock:
+    with torch_xla2.tensor.XLADispatchMode():
+      res = torch.func.functional_call(self.pt_model, paramst, argst)[0]
     caches_res = [c.state() for c in caches]
     return torch_xla2.tensor.unwrap((res, caches_res))
 
@@ -652,6 +652,7 @@ class PyTorchEngineRayWorker():
   def generate_ray(
       self, params: Any, decode_state: DecodeState
   ) -> tuple[None, engine_api.ResultTokens]:
+    print(f'---------------------------- go generate')  
     decode_state, result_tokens = self.generate(self.params, self.decode_state)
     self.decode_state = decode_state
     print(f'---------------------------- after generate')  

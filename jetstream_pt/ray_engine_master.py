@@ -72,6 +72,7 @@ class PyTorchEngineRayMaster(engine_api.Engine):
         self, params: Any, decode_state: DecodeState
     ) -> tuple[None, engine_api.ResultTokens]:
         all_outputs = []
+        print(f'---------------------------- go generate master') 
         for worker in self.engine_workers:
             output = worker.generate_ray.remote(params=params, decode_state=decode_state)
             all_outputs.append(output)
