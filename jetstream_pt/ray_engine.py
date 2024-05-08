@@ -152,7 +152,14 @@ def create_pytorch_ray_engine(
     quantize_weights=False,
     quantize_kv=False,
     max_cache_length=1024,
+    sharding_config=None,
 ) -> PyTorchRayEngine:
+
+  supported_models = ["llama-2", "llama-3"]
+  if model_name not in supported_models:
+    raise NotImplementedError(
+        f"Model name should be one of{','.join(supported_models)}"
+    )
 
   ray.init(ignore_reinit_error=True)
   pod_name = tpu.get_current_pod_name()
@@ -183,6 +190,7 @@ def create_pytorch_ray_engine(
         quantize_weights=quantize_weights,
         quantize_kv=quantize_kv,
         max_cache_length=max_cache_length,
+        sharding_config=sharding_config,
     )
     engine_workers.append(engine_worker)
   engine_master = PyTorchRayEngine(

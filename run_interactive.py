@@ -98,7 +98,6 @@ def create_engine():
       param_size=_SIZE.value,
       context_length=_CONTEXT_LENGTH.value,
       batch_size=_BATCH_SIZE.value,
-      model_name=_MODEL_NAME.value,
       quantize_weights=_QUANTIZE_WEIGHTS.value,
       quantize_kv=_QUANTIZE_KV_CACHE.value,
       max_cache_length=_MAX_CACHE_LENGTH.value,
