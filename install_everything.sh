@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-TORCHXLA_TAG=f26c35c2fa5eb1d22d042a2a8a8dc34f11b99f60 # updated May 14, 2024
-JETSTREAM_TAG=v0.2.1
+#JETSTREAM_TAG=v0.2.1
 
 # Uninstall existing jax
 pip show jax && pip uninstall -y jax
@@ -31,11 +30,11 @@ pushd deps
 git clone https://github.com/google/JetStream.git
 git clone https://github.com/pytorch/xla.git
 pushd xla/experimental/torch_xla2
-git checkout $TORCHXLA_TAG
+#git checkout $TORCHXLA_TAG
 pip install .
 popd  # now at the folder deps
 pushd JetStream
-git checkout $JETSTREAM_TAG
+#git checkout $JETSTREAM_TAG
 pip install .
 popd # now at the folder deps
 popd # now at the folder current file
