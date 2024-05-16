@@ -21,6 +21,7 @@ from absl import app
 from absl import flags
 from colorama import Fore, Style
 
+import numpy as np
 import jax
 
 from jetstream.engine import token_utils
@@ -108,6 +109,7 @@ def main(argv):
   print("Load params ", time.perf_counter() - start)
 
   metadata = engine.get_tokenizer()
+  tokenizer = engine.build_tokenizer(metadata)
   vocab = token_utils.load_vocab(metadata.path, metadata.extra_ids)
   stop_tokens = [vocab.eos_id, vocab.pad_id]
   max_output_length = 1024
@@ -145,6 +147,7 @@ def main(argv):
     while True:
       # pylint: disable-next=all
       decode_state, result_tokens = engine.generate(None, decode_state)
+      result_tokens = result_tokens.convert_to_numpy()
 
       slot_data = result_tokens.get_result_at_slot(slot)
       slot_tokens = slot_data.tokens

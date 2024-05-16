@@ -157,12 +157,13 @@ def main(argv):
     while True:
       decode_state, result_tokens = engine.generate(params, decode_state)
       result_tokens = result_tokens.convert_to_numpy()
-      output, complete = tokenizer.decode(
-          slot, max_output_length, result_tokens, complete
-      )
+      output, complete = token_utils.process_result_tokens(tokenizer=tokenizer, slot=slot,
+                                        slot_max_length=max_output_length,
+                                        result_tokens=result_tokens,
+                                        complete=complete)
       if complete[0]:
         break
-      token_id = output[0][0]
+      token_id = output[0].token_ids
       sampled_tokens_list.append(token_id)
       # output_str = tokenizer.decode_str([token_id])
       # print(Fore.GREEN + output_str, end="", flush=True)
@@ -173,7 +174,7 @@ def main(argv):
     print("---- All output tokens.")
     print(sampled_tokens_list)
     print("---- All output text.")
-    print(tokenizer.decode_str(sampled_tokens_list))
+    print(tokenizer.decode(sampled_tokens_list))
 
   if _PROFILING_OUTPUT.value:
     jax.profiler.stop_trace()
