@@ -20,6 +20,9 @@ pip show jaxlib && pip uninstall -y jaxlib
 pip show libtpu-nightly && pip uninstall -y libtpu-nightly
 pip show tensorflow && pip uninstall -y tensorflow
 pip show ray && pip uninstall -y ray
+pip show keras && pip uninstall -y keras
+pip show tensorboard && pip uninstall -y tensorboard
+pip show tensorflow-text && pip uninstall -y tensorflow-text
 
 
 pip install jax[tpu]==0.4.28 -f https://storage.googleapis.com/jax-releases/libtpu_releases.html

@@ -77,7 +77,7 @@ _SHARDING_CONFIG = flags.DEFINE_string(
 
 def create_engine():
   """create a pytorch engine"""
-  jax.config.update("jax_default_prng_impl", "unsafe_rbg")
+  # jax.config.update("jax_default_prng_impl", "unsafe_rbg")
   os.environ["TF_CPP_MIN_LOG_LEVEL"] = "0"
 
   start = time.perf_counter()
@@ -102,6 +102,7 @@ def create_engine():
 # pylint: disable-next=all
 def main(argv):
 
+  print("start the test")  
   engine = create_engine()
 
   start = time.perf_counter()

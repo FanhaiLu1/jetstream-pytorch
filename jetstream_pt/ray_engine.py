@@ -124,7 +124,6 @@ class PyTorchRayEngine(engine_api.Engine):
   def max_prefill_length(self) -> int:
     return self.context_length
 
-  @property
   def colocated_cpus(self) -> Union[list[engine_api.CpuDevices], None]:
     return jax.devices("cpu")[0]
 
