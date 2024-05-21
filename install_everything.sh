@@ -25,12 +25,14 @@ pip show tensorboard && pip uninstall -y tensorboard
 pip show tensorflow-text && pip uninstall -y tensorflow-text
 
 
-pip install jax[tpu]==0.4.28 -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
+pip install jax[tpu]==0.4.28 -f https://storage.googleapis.com/jax-releases/libtpu_releases.html --user
+pip install tensorflow-text --user
+pip install tensorflow --user
 # torch cpu
-pip install torch==2.2.1+cpu --index-url https://download.pytorch.org/whl/cpu
-pip install ray[default]==2.22.0
-pip install tensorflow flatbuffers absl-py flax sentencepiece seqio google-cloud-storage 
-pip install safetensors colorama coverage humanize
+pip install torch==2.2.1+cpu --index-url https://download.pytorch.org/whl/cpu --user
+pip install ray[default]==2.22.0 --user
+pip flatbuffers absl-py flax sentencepiece seqio google-cloud-storage  --user
+pip install safetensors colorama coverage humanize --user
 
 mkdir -p deps
 pushd deps
