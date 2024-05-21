@@ -30,6 +30,7 @@ from jax.experimental import multihost_utils
 import torch
 import numpy as np
 import ray
+from ray.util.accelerators import tpu
 from torch.utils import _pytree as pytree
 import torch_xla2
 
@@ -55,9 +56,15 @@ PrefillInputs = np.ndarray
 # pylint: disable-next=all
 class Prefix:
   token: jax.Array  # [1, seqlen]
-  caches: List[Tuple[jax.Array, jax.Array]]
+  caches: List[Tuple[np.ndarray, np.ndarray]]
   seq_len: int  # true seqlen front pad
 
+@struct.dataclass
+# pylint: disable-next=all
+class NpPrefix:
+  token: jax.Array  # [1, seqlen]
+  caches: List[Tuple[jax.Array, jax.Array]]
+  seq_len: int  # true seqlen front pad
 
 @struct.dataclass
 # pylint: disable-next=all
@@ -457,6 +464,44 @@ class PyTorchRayWorker:
     self.prefix_queue.put(prefix, block=False)
 
     return token
+  
+  def convert_to_np_caches(self, caches: List[Tuple[jax.Array, jax.Array]]) -> List[Tuple[np.ndarray, np.ndarray]]:
+    return [(np.asarray(tup[0]), np.asarray(tup[1])) for tup in caches]
+  
+  def convert_to_jax_caches(self, np_caches: List[Tuple[np.ndarray, np.ndarray]]) -> List[Tuple[jax.Array, jax.Array]]:
+    return [(jnp.asarray(tup[0]), jnp.asarray(tup[1])) for tup in np_caches]  
+    
+  def prefill_ray_disaggregation(
+      self,
+      *,
+      params: Any,  # Weights
+      existing_prefix: Optional[Prefix] = None,
+      padded_tokens: PrefillInputs,  # PrefillInputs[np.ndarray],
+      true_length: int,
+  ) -> Any:
+    """Do prefill in ray worker"""
+    logits, updated_caches = self.prefill(
+        params=params,
+        existing_prefix=existing_prefix,
+        padded_tokens=padded_tokens,
+        true_length=true_length,
+    )
+    if len(logits.shape) == 3:  # b, seqlen, num words
+      logits = logits[0]
+
+    token = np.argmax(logits[true_length - 1])
+    np_update_caches = self.convert_to_np_caches(updated_caches)
+    np_prefix = NpPrefix(token, np_update_caches, true_length)
+
+    return np_prefix  
+  
+
+  def transfer(self, np_prefix: NpPrefix) -> Any:
+    updated_caches = self.convert_to_jax_caches(np_prefix.caches)
+    prefix = Prefix(np_prefix.token, updated_caches, np_prefix.true_length)
+    self.prefix_queue.put(prefix, block=False)
+    return True
+     
 
   def shrink_prefix(
       self,
@@ -876,3 +921,6 @@ class PyTorchRayWorker:
   def mesh(self):
     """return mesh"""
     return None
+
+  def pod_slice_name(self):
+    return tpu.get_current_pod_name()  
