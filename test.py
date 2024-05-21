@@ -24,7 +24,7 @@ from colorama import Fore, Style
 import numpy as np
 import jax
 
-from jetstream.engine import token_utils
+# from jetstream.engine import token_utils
 from jetstream_pt import ray_engine
 
 FLAGS = flags.FLAGS
@@ -75,28 +75,7 @@ _SHARDING_CONFIG = flags.DEFINE_string(
 )
 
 
-def create_engine():
-  """create a pytorch engine"""
-  # jax.config.update("jax_default_prng_impl", "unsafe_rbg")
-  os.environ["TF_CPP_MIN_LOG_LEVEL"] = "0"
 
-  start = time.perf_counter()
-  engine = ray_engine.create_pytorch_ray_engine(
-      model_name=_MODEL_NAME.value,
-      tokenizer_path=_TOKENIZER_PATH.value,
-      ckpt_path=_CKPT_PATH.value,
-      bf16_enable=True,
-      param_size=_SIZE.value,
-      context_length=_CONTEXT_LENGTH.value,
-      batch_size=_BATCH_SIZE.value,
-      quantize_weights=_QUANTIZE_WEIGHTS.value,
-      quantize_kv=_QUANTIZE_KV_CACHE.value,
-      max_cache_length=_MAX_CACHE_LENGTH.value,
-      sharding_config=_SHARDING_CONFIG.value,
-  )
-
-  print("Initialize engine", time.perf_counter() - start)
-  return engine
 
 
 # pylint: disable-next=all
@@ -165,11 +144,11 @@ def main(argv):
 #     print("---- All output text.")
 #     print(vocab.tokenizer.decode(sampled_tokens_list))
 
-  if _PROFILING_OUTPUT.value:
-    jax.profiler.stop_trace()
+  # if _PROFILING_OUTPUT.value:
+  #   jax.profiler.stop_trace()
 
 
 if __name__ == "__main__":
   print("test")
-  os.environ["TF_CPP_MIN_LOG_LEVEL"] = "0"
+  # os.environ["TF_CPP_MIN_LOG_LEVEL"] = "0"
   app.run(main)

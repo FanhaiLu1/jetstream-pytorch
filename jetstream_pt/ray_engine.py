@@ -1,7 +1,6 @@
 from typing import Any, Iterable, Optional, Union
 
 import numpy as np
-import jax
 import ray
 from ray.util.accelerators import tpu
 
@@ -24,7 +23,7 @@ class PyTorchRayEngine(engine_api.Engine):
 
   def __init__(
       self,
-      engine_workers: Iterable[PyTorchRayWorker],
+      engine_workers: any,
       tokenizer_path: str,
       context_length: int,
       batch_size: int,
@@ -124,8 +123,10 @@ class PyTorchRayEngine(engine_api.Engine):
   def max_prefill_length(self) -> int:
     return self.context_length
 
+  @property
   def colocated_cpus(self) -> Union[list[engine_api.CpuDevices], None]:
-    return jax.devices("cpu")[0]
+    print("test")
+    return None
 
   def get_prefix_destination_sharding(self) -> Prefix:
     "No implementation"
@@ -170,6 +171,7 @@ def create_pytorch_ray_engine(
       num_hosts > 0
   ), f"num_hosts (current value {num_hosts}) should be a positive number"
   # pylint: disable-next=all
+
   engine_worker_with_tpu_resource = PyTorchRayWorker.options(
       resources={"TPU": 4}
   )

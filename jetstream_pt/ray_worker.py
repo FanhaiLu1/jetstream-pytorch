@@ -857,28 +857,23 @@ class PyTorchRayWorker:
     """Returns the index of the sequence dim in the prefix type."""
     return self.get_prefix_destination_sharding()
 
-  @property
   def max_concurrent_decodes(self) -> int:
     """Max batch size for decodes"""
     return self.env.batch_size
 
-  @property
   def samples_per_slot(self) -> int:
     """Samples per slot"""
     return 1
 
-  @property
   def max_prefill_length(self) -> int:
     """Maximum prefill length"""
     return self.env.max_input_sequence_length
 
-  @property
   def max_decode_length(self) -> int:
     """Maximum decode length"""
     # pylint: disable-next=all
     return self.env._data.max_decode_length
 
-  @property
   def mesh(self):
     """return mesh"""
     return None
