@@ -23,11 +23,14 @@ pip show ray && pip uninstall -y ray
 pip show keras && pip uninstall -y keras
 pip show tensorboard && pip uninstall -y tensorboard
 pip show tensorflow-text && pip uninstall -y tensorflow-text
+pip show flax && pip uninstall -y flax
+
 
 
 pip install jax[tpu]==0.4.28 -f https://storage.googleapis.com/jax-releases/libtpu_releases.html --user
 pip install tensorflow-text --user
 pip install tensorflow --user
+pip install flax==0.8.3 --user
 # torch cpu
 pip install torch==2.2.1+cpu --index-url https://download.pytorch.org/whl/cpu --user
 pip install ray[default]==2.22.0 --user
