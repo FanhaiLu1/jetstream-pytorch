@@ -34,17 +34,17 @@ pip install ray[default]==2.22.0 --user
 pip flatbuffers absl-py flax sentencepiece seqio google-cloud-storage  --user
 pip install safetensors colorama coverage humanize --user
 
-# mkdir -p deps
-# pushd deps
-# git clone https://github.com/google/JetStream.git
-# git clone https://github.com/pytorch/xla.git
-# pushd xla/experimental/torch_xla2
-# #git checkout $TORCHXLA_TAG
-# pip install .
-# popd  # now at the folder deps
-# pushd JetStream
-# #git checkout $JETSTREAM_TAG
-# pip install .
-# popd # now at the folder deps
-# popd # now at the folder current file
-# pip install -e .
+mkdir -p deps
+pushd deps
+git clone https://github.com/google/JetStream.git
+git clone https://github.com/pytorch/xla.git
+pushd xla/experimental/torch_xla2
+#git checkout $TORCHXLA_TAG
+pip install .
+popd  # now at the folder deps
+pushd JetStream
+#git checkout $JETSTREAM_TAG
+pip install .
+popd # now at the folder deps
+popd # now at the folder current file
+pip install -e .

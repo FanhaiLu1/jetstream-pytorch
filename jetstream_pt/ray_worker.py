@@ -490,6 +490,7 @@ class PyTorchRayWorker:
       logits = logits[0]
 
     token = np.argmax(logits[true_length - 1])
+    updated_caches = multihost_utils.process_allgather(updated_caches, tiled=True)
     np_update_caches = self.convert_to_np_caches(updated_caches)
     np_prefix = NpPrefix(token, np_update_caches, true_length)
 
@@ -498,7 +499,7 @@ class PyTorchRayWorker:
 
   def transfer(self, np_prefix: NpPrefix) -> Any:
     updated_caches = self.convert_to_jax_caches(np_prefix.caches)
-    prefix = Prefix(np_prefix.token, updated_caches, np_prefix.true_length)
+    prefix = Prefix(np_prefix.token, updated_caches, np_prefix.seq_len)
     self.prefix_queue.put(prefix, block=False)
     return True
      

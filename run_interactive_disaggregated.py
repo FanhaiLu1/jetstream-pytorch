@@ -106,9 +106,9 @@ def create_disaggregated_engines():
       quantize_kv=_QUANTIZE_KV_CACHE.value,
       max_cache_length=_MAX_CACHE_LENGTH.value,
       sharding_config=_SHARDING_CONFIG.value,
-      is_disaggregated=_IS_DISAGGREGATED,
+      is_disaggregated=_IS_DISAGGREGATED.value,
       num_hosts=_NUM_HOSTS.value,
-      decode_pod_slice_name=_DECODE_POD_SLICE_NAME,
+      decode_pod_slice_name=_DECODE_POD_SLICE_NAME.value,
   )
 
   print("Initialize engine", time.perf_counter() - start)

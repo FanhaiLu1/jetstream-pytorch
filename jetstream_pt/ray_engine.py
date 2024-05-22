@@ -29,7 +29,7 @@ class PyTorchRayEngine(engine_api.Engine):
       tokenizer_path: str,
       context_length: int,
       batch_size: int,
-      is_disaggregated: bool,
+      is_disaggregated: bool = False,
   ):
     self.engine_workers = engine_workers
     self.tokenizer_path = tokenizer_path
@@ -112,19 +112,19 @@ class PyTorchRayEngine(engine_api.Engine):
   ) -> Prefix:
     result = None
     if self.is_disaggregated:
-      result= self.interleave_prefill(
-          params=params,
-          existing_prefix=existing_prefix,
-          padded_tokens=padded_tokens,
-          true_length=true_length,
-      )
-    else:
       result = self.disaggregated_prefill(
-          params=params,
-          existing_prefix=existing_prefix,
-          padded_tokens=padded_tokens,
-          true_length=true_length,
+      params=params,
+      existing_prefix=existing_prefix,
+      padded_tokens=padded_tokens,
+      true_length=true_length,
       ) 
+    else:
+      result= self.interleave_prefill(
+      params=params,
+      existing_prefix=existing_prefix,
+      padded_tokens=padded_tokens,
+      true_length=true_length,
+      )
 
     return result
   
@@ -220,7 +220,7 @@ def create_pytorch_ray_engine(
     is_disaggregated: bool = False,
     num_hosts: int = 0,
     decode_pod_slice_name: str = None,
-) -> Tuple[PyTorchRayEngine, PyTorchRayEngine]:
+) -> Any:
 
   supported_models = ["llama-2", "llama-3", "gemma"]
   if model_name not in supported_models:
@@ -262,12 +262,12 @@ def create_pytorch_ray_engine(
     engine_workers.append(engine_worker)
   
   if not is_disaggregated:
-    return (PyTorchRayEngine(
+    return PyTorchRayEngine(
       engine_workers=engine_workers,
       tokenizer_path=tokenizer_path,
       context_length=context_length,
       batch_size=batch_size,
-      ), None)
+      )
     
   workers_dict = defaultdict(list)  
   for worker in engine_workers:
