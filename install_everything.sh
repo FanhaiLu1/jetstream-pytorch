@@ -24,6 +24,7 @@ pip show keras && pip uninstall -y keras
 pip show tensorboard && pip uninstall -y tensorboard
 pip show tensorflow-text && pip uninstall -y tensorflow-text
 pip show flax && pip uninstall -y flax
+pip show torch_xla2 && pip uninstall -y torch_xla2
 
 
 
