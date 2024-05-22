@@ -42,7 +42,7 @@ pushd deps
 git clone https://github.com/google/JetStream.git
 git clone https://github.com/pytorch/xla.git
 pushd xla/experimental/torch_xla2
-#git checkout $TORCHXLA_TAG
+git checkout 961c22ae03bbc3fc53641efd85427ed1f0f38be0
 pip install .
 popd  # now at the folder deps
 pushd JetStream
