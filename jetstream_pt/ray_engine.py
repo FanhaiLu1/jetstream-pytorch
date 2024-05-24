@@ -30,12 +30,14 @@ class PyTorchRayEngine(engine_api.Engine):
       context_length: int,
       batch_size: int,
       is_disaggregated: bool = False,
+      pod_slice_name: str = None,
   ):
     self.engine_workers = engine_workers
     self.tokenizer_path = tokenizer_path
     self.context_length = context_length
     self.batch_size = batch_size
     self.is_disaggregated = is_disaggregated
+    self.pod_slice_name = pod_slice_name
 
   # pylint: disable-next=all
   def load_params(self) -> Params:
@@ -280,6 +282,7 @@ def create_pytorch_ray_engine(
       context_length=context_length,
       batch_size=batch_size,
       is_disaggregated=is_disaggregated,
+      pod_slice_name=pod_name,
   )
   decode_engine = PyTorchRayEngine(
       engine_workers=workers_dict[decode_pod_slice_name],
@@ -287,5 +290,6 @@ def create_pytorch_ray_engine(
       context_length=context_length,
       batch_size=batch_size,
       is_disaggregated=is_disaggregated,
+      pod_slice_name=decode_pod_slice_name,
   )
   return (prefill_engine, decode_engine)
