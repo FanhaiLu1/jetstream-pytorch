@@ -83,7 +83,7 @@ class DecodeState:
 # NOTE model specific
 
 
-# @ray.remote
+@ray.remote
 # pylint: disable-next=all
 class PyTorchRayWorker:
   """Ray actor representation for a PyTorch engine worker.
