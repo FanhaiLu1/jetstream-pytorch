@@ -12,24 +12,62 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 import os
 import random
 import time
 from typing import List
 
+import humanize
 import jax
 import numpy as np
 from absl import app, flags
 from colorama import Fore, Style
 from jetstream.engine import token_utils
 from jetstream_pt import engine as je
+from jetstream_pt import local_engine
 from jetstream_pt.config import FLAGS, create_engine_from_config_flags
 
+
+def create_engine():
+  """create a pytorch engine"""
+  jax.config.update("jax_default_prng_impl", "unsafe_rbg")
+  os.environ["TF_CPP_MIN_LOG_LEVEL"] = "0"
+
+  start = time.perf_counter()
+  engine = local_engine.create_pytorch_ray_engine(
+      model_name=FLAGS.model_name,
+      tokenizer_path=FLAGS.tokenizer_path,
+      ckpt_path=FLAGS.checkpoint_path,
+      bf16_enable=FLAGS.bf16_enable,
+      param_size=FLAGS.size,
+      context_length=FLAGS.context_length,
+      batch_size=FLAGS.batch_size,
+      quantize_weights=FLAGS.quantize_weights,
+      quantize_kv=FLAGS.quantize_kv_cache,
+      max_cache_length=FLAGS.max_cache_length,
+      sharding_config=FLAGS.sharding_config,
+  )
+
+  print("Initialize engine", time.perf_counter() - start)
+  return engine
+
+def print_mem_usage():
+  """Print current mem usage"""
+  fmt_size = functools.partial(humanize.naturalsize, binary=True)
+
+  for d in jax.local_devices():
+    stats = d.memory_stats()
+    used = stats["bytes_in_use"]
+    limit = stats["bytes_limit"]
+    print(
+        f"memory using {fmt_size(used)} / {fmt_size(limit)} ({used/limit:%}) on {d}"
+    )
 
 # pylint: disable-next=all
 def main(argv):
 
-  engine = create_engine_from_config_flags()
+  engine = create_engine()
 
   start = time.perf_counter()
   params = engine.load_params()
@@ -59,12 +97,17 @@ def main(argv):
     print(f"---- Input prompts are: {prompt}")
     print(f"---- Encoded tokens are: {tokens}")
 
-    # pylint: disable-next=all
-    prefill_result = engine.prefill(
-        params=params, padded_tokens=tokens, true_length=true_length
-    )
-    # pylint: disable-next=all
-    decode_state = engine.insert(prefill_result, decode_state, slot=slot)
+    for i in range(FLAGS.batch_size):
+      # pylint: disable-next=all
+      prefill_result = engine.prefill(
+          params=params, padded_tokens=tokens, true_length=true_length
+      )
+      print("---- print_mem_usage  after prefill.")
+      print_mem_usage()
+      # pylint: disable-next=all
+      decode_state = engine.insert(prefill_result, decode_state, slot=i)
+    print("print_mem_usage  after insert")
+    print_mem_usage() 
     sampled_tokens_list = []
     print(f"---- Streaming decode started on #slot{slot}.")
     complete = np.zeros((1,), dtype=np.bool_)
@@ -87,10 +130,13 @@ def main(argv):
       token_ids = output[0].token_ids
       sampled_tokens_list.extend(token_ids)
 
-    print("---- All output tokens.")
-    print(sampled_tokens_list)
-    print("---- All output text.")
-    print(tokenizer.decode(sampled_tokens_list))
+    # print("---- All output tokens.")
+    # print(sampled_tokens_list)
+    # print("---- All output text.")
+    # print(tokenizer.decode(sampled_tokens_list))
+    
+    print("---- print_mem_usage  text.")
+    print_mem_usage()
 
   if profiling_output and profiling_prefill:
     jax.profiler.stop_trace()

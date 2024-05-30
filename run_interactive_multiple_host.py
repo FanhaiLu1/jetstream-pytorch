@@ -22,6 +22,7 @@ from absl import app, flags
 from colorama import Fore, Style
 from jetstream.engine import token_utils
 from jetstream_pt import ray_engine
+from jetstream_pt import local_engine
 from jetstream_pt.config import FLAGS
 
 
