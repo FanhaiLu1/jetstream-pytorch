@@ -1,5 +1,6 @@
 from collections import defaultdict
 from typing import Any, Iterable, Optional, Union
+from threading import Thread, Lock
 
 import numpy as np
 import ray
@@ -32,12 +33,14 @@ class PyTorchRayEngine(engine_api.Engine):
       is_disaggregated: bool = False,
       pod_slice_name: str = None,
   ):
+    self.lock = Lock()  
     self.engine_workers = engine_workers
     self.tokenizer_path = tokenizer_path
     self.context_length = context_length
     self.batch_size = batch_size
     self.is_disaggregated = is_disaggregated
     self.pod_slice_name = pod_slice_name
+    self.step = 0
 
   # pylint: disable-next=all
   def load_params(self) -> Params:
@@ -67,24 +70,29 @@ class PyTorchRayEngine(engine_api.Engine):
       padded_tokens: np.ndarray,  # PrefillInputs[np.ndarray],
       true_length: int,
   ) -> Prefix:
-    all_outputs = []
-    for worker in self.engine_workers:
-      prefill_func = (
-          worker.prefill_ray_disaggregation
-          if self.is_disaggregated
-          else worker.prefill_ray
-      )
-      output = prefill_func.remote(
-          params=params,
-          existing_prefix=existing_prefix,
-          padded_tokens=padded_tokens,
-          true_length=true_length,
-      )
-      all_outputs.append(output)
-    results = ray.get(all_outputs)
-    # The prefill function does not return any values;
-    # the worker itself manages and maintains the prefill states.
-    return results[0]
+    with self.lock:
+      all_outputs = []
+      self.step = self.step + 1
+      step = self.step
+      print(f"----------------------------------------> prefill started step: {step} true length: {true_length}")
+      for worker in self.engine_workers:
+        prefill_func = (
+            worker.prefill_ray_disaggregation
+            if self.is_disaggregated
+            else worker.prefill_ray
+        )
+        output = prefill_func.remote(
+            params=params,
+            existing_prefix=existing_prefix,
+            padded_tokens=padded_tokens,
+            true_length=true_length,
+        )
+        all_outputs.append(output)
+      results = ray.get(all_outputs)
+      print(f"----------------------------------------> prefill finished step: {step} true length: {true_length},results {results[0]} ")
+      # The prefill function does not return any values;
+      # the worker itself manages and maintains the prefill states.
+      return results[0]
 
   def transfer(self, np_prefix: NpPrefix) -> Any:
     """Store prefill result into object store, then transfer to decode engine workers."""
@@ -117,16 +125,21 @@ class PyTorchRayEngine(engine_api.Engine):
   def generate(
       self, params: Any, decode_state: DecodeState
   ) -> tuple[None, engine_api.ResultTokens]:
-    all_outputs = []
-    for worker in self.engine_workers:
-      output = worker.generate_ray.remote(
-          params=params, decode_state=decode_state
-      )
-      all_outputs.append(output)
-    # All workers performed an all_gather operation. Since the results are
-    # identical across all workers, the result from worker 0 is returned.
-    state, result_tokens = ray.get(all_outputs)[0]
-    return state, result_tokens
+    with self.lock:
+      all_outputs = []
+      self.step = self.step + 1
+      step = self.step
+      print(f"----------------------------------------> generate started step {step}")
+      for worker in self.engine_workers:
+        output = worker.generate_ray.remote(
+            params=params, decode_state=decode_state
+        )
+        all_outputs.append(output)
+      # All workers performed an all_gather operation. Since the results are
+      # identical across all workers, the result from worker 0 is returned.
+      state, result_tokens = ray.get(all_outputs)[0]
+      print(f"----------------------------------------> generate finished step {step}")
+      return state, result_tokens
 
   # pylint: disable-next=all
   def get_tokenizer(self) -> tokenizer_pb2.TokenizerParameters:

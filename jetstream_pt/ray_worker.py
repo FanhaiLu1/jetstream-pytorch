@@ -133,7 +133,10 @@ class PyTorchRayWorker:
     )
 
     if enable_jax_profiler:
-      jax.profiler.start_server(jax_profiler_port)
+      try:
+        jax.profiler.start_server(jax_profiler_port)
+      except Exception as e:
+        print(f"---------- error: {e}")
       print(f"Started JAX profiler server on port {jax_profiler_port}")
 
     checkpoint_format = ""
