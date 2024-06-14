@@ -230,7 +230,7 @@ class PyTorchRayWorker:
     self.y_sharding = env.sharding_by_axis(1)
     self.x_sharding = env.sharding_by_axis(0)
     self.replicated = env.sharding_by_axis(-1)  # replicated
-    self.cache_sharding = self.y_sharding
+    self.cache_sharding = self.env.cache_sharding
 
     self._compiled_call_model_prefill = jax.jit(
         self._call_model_prefill,
