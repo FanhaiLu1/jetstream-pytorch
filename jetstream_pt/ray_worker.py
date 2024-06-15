@@ -707,6 +707,7 @@ class PyTorchRayWorker:
   ):
     start_insert = decode_state.current_position - prefix.seq_len
     end_insert = start_insert + prefix.caches[0][0].shape[2]  # padded seclen
+    prefix.caches = [c[:, :c.shape[1] // 2, :, :]   for c in prefix.cache]
     return jax.lax.cond(
         jnp.logical_and(
             start_insert >= 0, end_insert < self.env.cache_sequence_length
