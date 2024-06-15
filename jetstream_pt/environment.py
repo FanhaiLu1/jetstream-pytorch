@@ -149,6 +149,8 @@ class JetEngineEnvironment:
       # cannot shard on an axis that is 1
       # default to last
       cache_sharding_axis = len(self.cache_shape) - 1
+      
+    print(f"-----------------------------------> cache_sharding_axis {cache_sharding_axis}")  
 
     self.cache_sharding = self.sharding_by_axis(cache_sharding_axis)
     self._load_sharding_config()

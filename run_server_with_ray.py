@@ -68,6 +68,7 @@ def create_engine():
       sharding_config=FLAGS.sharding_config,
       enable_jax_profiler=FLAGS.enable_jax_profiler,
       jax_profiler_port=FLAGS.jax_profiler_port,
+      shard_on_batch=FLAGS.shard_on_batch,
   )
 
   print("Initialize engine", time.perf_counter() - start)

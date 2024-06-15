@@ -237,13 +237,13 @@ class PyTorchRayWorker:
     self._compiled_call_model_prefill = jax.jit(
         self._call_model_prefill,
         donate_argnums=(1, 2),
-        out_shardings=(self.replicated, self.cache_sharding),
+        out_shardings=(self.replicated, self.replicated if self.env.shard_on_batch else self.cache_sharding,),
     )
     self._compiled_insert = jax.jit(
         self._insert,
         donate_argnums=(0, 1),
         out_shardings=(
-            self.replicated,
+            self.x_sharding if self.env.shard_on_batch else self.replicated,
             self.cache_sharding,
             self.replicated,
             self.replicated,
@@ -257,7 +257,7 @@ class PyTorchRayWorker:
         self._call_model_generate,
         donate_argnums=(2, 3, 4, 5, 6, 7),
         out_shardings=(
-            self.replicated,
+            self.x_sharding if self.env.shard_on_batch else self.replicated,
             self.cache_sharding,
             self.replicated,
             self.replicated,
