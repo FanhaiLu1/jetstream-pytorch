@@ -153,6 +153,7 @@ class JetEngineEnvironment:
     print(f"-----------------------------------> cache_sharding_axis {cache_sharding_axis}")  
 
     self.cache_sharding = self.sharding_by_axis(cache_sharding_axis)
+    self.cache_sharding_dim = self.sharding_by_axis(3)
     self._load_sharding_config()
 
   def _load_sharding_config(self):
