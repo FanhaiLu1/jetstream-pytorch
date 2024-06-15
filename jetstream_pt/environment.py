@@ -157,7 +157,7 @@ class JetEngineEnvironment:
 
     # self.cache_sharding = self.sharding_by_axis(cache_sharding_axis)
     self.cache_sharding = self.sharding_by_two_axis(axis_x=cache_sharding_axis, axis_y=0)
-    self.cache_sharding_duplicate_y = self.sharding_by_axis(cache_sharding_axis)
+    self.cache_sharding_d = self.sharding_by_two_axis(axis_x=cache_sharding_axis, axis_y=3)
     self._load_sharding_config()
 
   def _load_sharding_config(self):
@@ -193,7 +193,8 @@ class JetEngineEnvironment:
     """return sharding partition spc by axis, options are x, y, -1 or Noe"""
     if axis_x == -1 or axis_x is None:
       return jax.sharding.PartitionSpec()
-    sharding = [None] * (axis_x + 1)
+    max_index = max(axis_x, axis_y)
+    sharding = [None] * (max_index + 1)
     sharding[axis_x] = "x"
     sharding[axis_y] = "y"
     sharding_spec = jax.sharding.PartitionSpec(*sharding)
