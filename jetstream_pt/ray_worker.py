@@ -243,7 +243,7 @@ class PyTorchRayWorker:
         donate_argnums=(0, 1),
         out_shardings=(
             self.replicated,
-            self.cache_sharding_duplicate_y,
+            self.cache_sharding,
             self.replicated,
             self.replicated,
             self.replicated,
