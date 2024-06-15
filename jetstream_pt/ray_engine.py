@@ -217,6 +217,7 @@ def create_pytorch_ray_engine(
     decode_pod_slice_name: str = None,
     enable_jax_profiler: bool = False,
     jax_profiler_port: int = 9999,
+    shard_on_batch: bool = False
 ) -> Union[
     PyTorchRayEngine, Tuple[List[PyTorchRayEngine], List[PyTorchRayEngine]]
 ]:
@@ -261,6 +262,7 @@ def create_pytorch_ray_engine(
         sharding_config=sharding_config,
         enable_jax_profiler=enable_jax_profiler,
         jax_profiler_port=jax_profiler_port,
+        shard_on_batch=shard_on_batch,
     )
     engine_workers.append(engine_worker)
 

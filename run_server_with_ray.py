@@ -98,6 +98,7 @@ def create_disaggregated_engine():
           is_disaggregated=FLAGS.is_disaggregated,
           num_hosts=FLAGS.num_hosts,
           decode_pod_slice_name=FLAGS.decode_pod_slice_name,
+          shard_on_batch=FLAGS.shard_on_batch,
       )
   )
 

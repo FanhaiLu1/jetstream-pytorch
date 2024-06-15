@@ -116,6 +116,7 @@ class PyTorchRayWorker:
       sharding_config=None,
       enable_jax_profiler: bool = False,
       jax_profiler_port: int = 9999,
+      shard_on_batch: bool = False
   ):
 
     jax.config.update("jax_default_prng_impl", "unsafe_rbg")
@@ -180,6 +181,7 @@ class PyTorchRayWorker:
         cache_sequence_length=max_cache_length,
         bf16_enable=bf16_enable,
         sharding_config_path=sharding_config,
+        shard_on_batch=shard_on_batch,
     )
 
     if model_name.startswith("llama"):
