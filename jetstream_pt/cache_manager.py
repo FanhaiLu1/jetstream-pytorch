@@ -18,6 +18,45 @@ import torch
 from jetstream_pt import torchjax
 
 
+def repeat_kv(x: torch.Tensor, n_rep: int) -> torch.Tensor:
+  """torch.repeat_interleave(x, dim=2, repeats=n_rep)."""
+
+  bs, n_kv_heads, slen, head_dim = x.shape
+  if n_rep == 1:
+    return x
+  return (
+      x[:, :, None, :, :]
+      .expand(bs, n_kv_heads, n_rep, slen, head_dim)
+      .reshape(bs, n_kv_heads * n_rep, slen, head_dim)
+  )
+
+def orginal_kv_from_repeat(x: torch.Tensor, n_rep: int) -> torch.Tensor:
+  """torch.repeat_interleave(x, dim=2, repeats=n_rep)."""
+
+  bs, n_kv_heads_repeated, slen, head_dim = x.shape
+  if n_rep == 1:
+    return x
+  n_kv_heads = n_kv_heads_repeated // n_rep 
+  x = x.reshape(bs, n_kv_heads, n_rep, slen, head_dim)
+  x = x[:, :, 0, :, :]
+  return x
+
+def unrepeat_kv(x: jnp.ndarray, n_rep: int) -> jnp.ndarray:
+    """Reverses JAX `repeat_kv` and returns the exact original array."""
+    bs, n_kv_heads_repeated, slen, head_dim = x.shape
+    if n_rep == 1:
+        return x
+    
+    n_kv_heads = n_kv_heads_repeated // n_rep 
+
+    # Reshape to separate the repeated heads
+    x = jnp.reshape(x, (bs, n_kv_heads, n_rep, slen, head_dim))
+
+    # Select the first slice along the repetition dimension
+    x = x[:, :, 0, :, :]
+
+    return x
+  
 # pylint: disable-next=all
 class CacheInterface:
   """Kv cache interface"""
@@ -47,6 +86,18 @@ class KVCachePrefill:
     """This cache just remembers the stuff."""
     self.cache_k = jnp.tile(key, (1, 2, 1, 1) )
     self.cache_v = jnp.tile(value, (1, 2, 1, 1) )
+
+    if self.kv_quantize:  # pretend to be quantized
+      bsz, _, seq, _ = key.shape
+      ones = torchjax.to_torch(jnp.ones((bsz, 1, seq, 1), dtype=jnp.bfloat16))
+      return key, value, ones, ones
+
+    return key, value
+  
+  def update_(self, key, value):
+    """This cache just remembers the stuff."""
+    self.cache_k = repeat_kv(key, 2)
+    self.cache_v = repeat_kv(value, 2)
 
     if self.kv_quantize:  # pretend to be quantized
       bsz, _, seq, _ = key.shape
