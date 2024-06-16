@@ -84,18 +84,6 @@ class KVCachePrefill:
 
   def update(self, key, value):
     """This cache just remembers the stuff."""
-    self.cache_k = jnp.tile(key, (1, 2, 1, 1) )
-    self.cache_v = jnp.tile(value, (1, 2, 1, 1) )
-
-    if self.kv_quantize:  # pretend to be quantized
-      bsz, _, seq, _ = key.shape
-      ones = torchjax.to_torch(jnp.ones((bsz, 1, seq, 1), dtype=jnp.bfloat16))
-      return key, value, ones, ones
-
-    return key, value
-  
-  def update_(self, key, value):
-    """This cache just remembers the stuff."""
     self.cache_k = repeat_kv(key, 2)
     self.cache_v = repeat_kv(value, 2)
 
