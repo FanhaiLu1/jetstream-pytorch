@@ -552,6 +552,7 @@ class PyTorchRayWorker:
 
       @functools.partial(jax.jit, donate_argnums=(0, 1), inline=True)
       def insert(cache, new_entry):
+        new_entry = cache_manager.unrepeat_kv(new_entry, 2)
         res = jax.lax.dynamic_update_slice(
             cache,
             new_entry,
@@ -653,6 +654,7 @@ class PyTorchRayWorker:
 
       @functools.partial(jax.jit, donate_argnums=(0, 1), inline=True)
       def insert(cache, new_entry):
+        new_entry = cache_manager.unrepeat_kv(new_entry, 2)
         new_entry = jnp.transpose(new_entry.squeeze(0), (1, 0, 2))
         res = cache.at[slot, :, update_indexes, :].set(new_entry)
         res = jax.lax.with_sharding_constraint(res, self.cache_sharding)
@@ -708,7 +710,6 @@ class PyTorchRayWorker:
     start_insert = decode_state.current_position - prefix.seq_len
     end_insert = start_insert + prefix.caches[0][0].shape[2]  # padded seclen
     
-    prefix.caches = [ (cache_manager.unrepeat_kv(c[0], 2), cache_manager.unrepeat_kv(c[1], 2)) for c in prefix.caches]
     return jax.lax.cond(
         jnp.logical_and(
             start_insert >= 0, end_insert < self.env.cache_sequence_length
