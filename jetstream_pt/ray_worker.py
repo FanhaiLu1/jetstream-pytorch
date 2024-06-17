@@ -244,7 +244,7 @@ class PyTorchRayWorker:
         self._insert,
         donate_argnums=(0, 1),
         out_shardings=(
-            self.x_sharding if self.env.shard_on_batch else self.replicated,
+            self.x_sharding, # if self.env.shard_on_batch else self.replicated,
             self.cache_sharding,
             self.replicated,
             self.replicated,
@@ -258,7 +258,7 @@ class PyTorchRayWorker:
         self._call_model_generate,
         donate_argnums=(2, 3, 4, 5, 6, 7),
         out_shardings=(
-            self.x_sharding if self.env.shard_on_batch else self.replicated,
+            self.x_sharding, # if self.env.shard_on_batch else self.replicated,
             self.cache_sharding,
             self.replicated,
             self.replicated,
@@ -772,7 +772,7 @@ class PyTorchRayWorker:
     next_token = self._sampling(logits, self.env.batch_size)
     tokens = multihost_utils.process_allgather(decode_state.tokens, tiled=True)
     print(f"-----------------> next_token shape {next_token.shape}")
-    print(f"-----------------> next_token shape {tokens.shape}")
+    print(f"-----------------> tokens shape {tokens.shape}")
     print(f"-----------------> new_lens shape {new_lens.shape}")
 
     data = np.concatenate(
