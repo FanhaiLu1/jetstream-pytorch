@@ -772,10 +772,11 @@ class PyTorchRayWorker:
 
     logits = multihost_utils.process_allgather(logits, tiled=True)
     next_token = self._sampling(logits, self.env.batch_size)
+    tokens = multihost_utils.process_allgather(decode_state.tokens, tiled=True)
 
     data = np.concatenate(
         [
-            decode_state.tokens,
+            tokens,
             np.ones_like(next_token),
             new_lens,
         ],
