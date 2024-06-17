@@ -267,7 +267,6 @@ class PyTorchRayWorker:
             self.replicated,
         ),
     )
-    self._lock = threading.RLock()
 
   # pylint: disable-next=all
   def sharding_by_name(self, name):
@@ -369,10 +368,9 @@ class PyTorchRayWorker:
 
     args = (tokens, input_pos, caches_obj, mask)
     paramst, argst = torchjax.to_torch((weights, args))
-    with self._lock:
-      with torch_xla2.default_env():
-        res = torch.func.functional_call(self.pt_model, paramst, argst)
-      updated_caches = [c.state() for c in caches_obj]
+    with torch_xla2.default_env():
+      res = torch.func.functional_call(self.pt_model, paramst, argst)
+    updated_caches = [c.state() for c in caches_obj]
     scales = []
     if self.env.quant_config.enable_kv_quantization:
       scales = [c.scalers() for c in caches_obj]
@@ -412,9 +410,9 @@ class PyTorchRayWorker:
     args = (tokens, input_indexes, caches, mask)
 
     paramst, argst = torchjax.to_torch((weights, args))
-    with self._lock:
-      with torch_xla2.default_env():
-        res = torch.func.functional_call(self.pt_model, paramst, argst)[0]
+
+    with torch_xla2.default_env():
+      res = torch.func.functional_call(self.pt_model, paramst, argst)[0]
     caches_res = [c.state() for c in caches]
     return torchjax.from_torch((res, caches_res))
 
@@ -773,6 +771,9 @@ class PyTorchRayWorker:
     logits = multihost_utils.process_allgather(logits, tiled=True)
     next_token = self._sampling(logits, self.env.batch_size)
     tokens = multihost_utils.process_allgather(decode_state.tokens, tiled=True)
+    print(f"-----------------> next_token shape {next_token.shape}")
+    print(f"-----------------> next_token shape {tokens.shape}")
+    print(f"-----------------> new_lens shape {new_lens.shape}")
 
     data = np.concatenate(
         [
