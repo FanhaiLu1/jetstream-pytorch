@@ -310,6 +310,7 @@ class PyTorchEngine(engine_api.Engine):
 
       @functools.partial(jax.jit, donate_argnums=(0, 1), inline=True)
       def insert(cache, new_entry):
+        new_entry = cache_manager.unrepeat_kv(new_entry, 2)
         res = jax.lax.dynamic_update_slice(
             cache,
             new_entry,
@@ -412,6 +413,7 @@ class PyTorchEngine(engine_api.Engine):
 
       @functools.partial(jax.jit, donate_argnums=(0, 1), inline=True)
       def insert(cache, new_entry):
+        new_entry = cache_manager.unrepeat_kv(new_entry, 2)
         new_entry = jnp.transpose(new_entry.squeeze(0), (1, 0, 2))
         res = cache.at[slot, :, update_indexes, :].set(new_entry)
         res = jax.lax.with_sharding_constraint(res, self.cache_sharding)

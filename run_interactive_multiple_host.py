@@ -43,6 +43,8 @@ def create_engine():
       quantize_kv=FLAGS.quantize_kv_cache,
       max_cache_length=FLAGS.max_cache_length,
       sharding_config=FLAGS.sharding_config,
+      enable_jax_profiler=FLAGS.enable_jax_profiler,
+      shard_on_batch=FLAGS.shard_on_batch,
   )
 
   print("Initialize engine", time.perf_counter() - start)
@@ -88,15 +90,24 @@ def main(argv):
     print(f"---- Encoded tokens are: {tokens}")
 
     # pylint: disable-next=all
+    t1 = time.time()
     prefill_result = engine.prefill(
         params=None, padded_tokens=tokens, true_length=true_length
     )
+    time_taken = time.time() - t1
+    print(f"-----------> prefill time: {time_taken}")    
+    t1 = time.time()
     # pylint: disable-next=all
     decode_state = engine.insert(prefill_result, None, slot=slot)
+    time_taken = time.time() - t1
+    print(f"-----------> insert time: {time_taken}")    
     sampled_tokens_list = []
     while True:
       # pylint: disable-next=all
+      t1 = time.time()
       decode_state, result_tokens = engine.generate(None, decode_state)
+      time_taken = time.time() - t1
+      print(f"-----------> decode time: {time_taken}")
       result_tokens = result_tokens.convert_to_numpy()
 
       slot_data = result_tokens.get_result_at_slot(slot)

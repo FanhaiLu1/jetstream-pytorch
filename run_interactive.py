@@ -62,18 +62,29 @@ def main(argv):
     print(f"---- Encoded tokens are: {tokens}")
 
     # pylint: disable-next=all
+    t1 = time.time()
     prefill_result = engine.prefill(
         params=params, padded_tokens=tokens, true_length=true_length
     )
+    time_taken = time.time() - t1
+    print(f"-----------> prefill time: {time_taken}")
     # pylint: disable-next=all
+    t1 = time.time()
     decode_state = engine.insert(prefill_result, decode_state, slot=slot)
+    time_taken = time.time() - t1
+    print(f"-----------> insert time: {time_taken}")
     sampled_tokens_list = []
     print(f"---- Streaming decode started on #slot{slot}.")
     complete = np.zeros((1,), dtype=np.bool_)
     while True:
       if profiling_output and not profiling_prefill:
         jax.profiler.start_trace(profiling_output)
+      
+      t1 = time.time()
       decode_state, result_tokens = engine.generate(params, decode_state)
+      time_taken = time.time() - t1
+      print(f"-----------> decode time: {time_taken}")
+      print(f"---- Streaming decode started on #slot{slot}.")
       if profiling_output and not profiling_prefill:
         jax.profiler.stop_trace()
       result_tokens = result_tokens.convert_to_numpy()
