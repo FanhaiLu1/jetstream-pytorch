@@ -770,7 +770,7 @@ class PyTorchRayWorker:
 
     logits = multihost_utils.process_allgather(logits, tiled=True)
     next_token = self._sampling(logits, self.env.batch_size)
-    tokens = multihost_utils.process_allgather(decode_state.tokens, tiled=True)
+    tokens = decode_state.tokens
     print(f"-----------------> next_token shape {next_token.shape}")
     print(f"-----------------> tokens shape {tokens.shape}")
     print(f"-----------------> new_lens shape {new_lens.shape}")
