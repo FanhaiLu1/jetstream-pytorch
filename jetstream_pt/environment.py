@@ -130,12 +130,12 @@ class JetEngineEnvironment:
     num_of_partitions = jax.device_count()
     # make mesh etc.
     self.mesh = jsharding.Mesh(
-        mesh_utils.create_device_mesh((num_of_partitions, 1)),
+        mesh_utils.create_device_mesh((num_of_partitions // 2, 2)),
         axis_names=("x", "y"),
     )
 
-    self.y_sharding = jsharding.NamedSharding(self.mesh, P(None, "x"))
-    self.x_sharding = jsharding.NamedSharding(self.mesh, P("x"))
+    self.y_sharding = jsharding.NamedSharding(self.mesh, P("y", "x"))
+    self.x_sharding = jsharding.NamedSharding(self.mesh, P("x", "y"))
     self.replicated = jsharding.NamedSharding(self.mesh, P())
 
     if data.shard_on_batch:
@@ -152,7 +152,8 @@ class JetEngineEnvironment:
       
     print(f"-----------------------------------> cache_sharding_axis {cache_sharding_axis}")  
 
-    self.cache_sharding = self.sharding_by_axis(cache_sharding_axis)
+    self.cache_sharding = self.sharding_by_two_axis(axis_x=cache_sharding_axis, axis_y=0)
+    self.prefill_cache_sharding = self.sharding_by_two_axis(axis_x=1, axis_y=3)
     self.cache_sharding_dim = self.sharding_by_axis(1)
     self._load_sharding_config()
 
@@ -188,6 +189,20 @@ class JetEngineEnvironment:
   def sharding_by_axis(self, axis):
     """return sharding partition spc by axis, options are x, y, -1 or Noe"""
     return jsharding.NamedSharding(self.mesh, self.partition_by_axis(axis))
+  
+  def partition_by_two_axis(self, axis_x=None, axis_y=None):
+    """return sharding partition spc by axis, options are x, y, -1 or Noe"""
+    if axis_x == -1 or axis_x is None:
+      return jax.sharding.PartitionSpec()
+    sharding = [None] * (max(axis_x, axis_y) + 1)
+    sharding[axis_x] = "x"
+    sharding[axis_y] = "y"
+    sharding_spec = jax.sharding.PartitionSpec(*sharding)
+    return sharding_spec
+
+  def sharding_by_two_axis(self, axis_x=None, axis_y=None):
+    """return sharding partition spc by axis, options are x, y, -1 or Noe"""
+    return jsharding.NamedSharding(self.mesh, self.partition_by_axis(axis_x, axis_y))
 
   def make_caches_prefill(self):
     """Create kv caches for inference prefill"""
