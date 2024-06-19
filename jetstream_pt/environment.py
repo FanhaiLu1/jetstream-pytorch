@@ -133,6 +133,8 @@ class JetEngineEnvironment:
         mesh_utils.create_device_mesh((num_of_partitions // 2, 2)),
         axis_names=("x", "y"),
     )
+    
+    print(f"-----------------------------------> num_of_partitions {num_of_partitions}, shape: {self.mesh.shape}")  
 
     self.y_sharding = jsharding.NamedSharding(self.mesh, P("y", "x"))
     self.x_sharding = jsharding.NamedSharding(self.mesh, P("x", "y"))
@@ -202,7 +204,7 @@ class JetEngineEnvironment:
 
   def sharding_by_two_axis(self, axis_x=None, axis_y=None):
     """return sharding partition spc by axis, options are x, y, -1 or Noe"""
-    return jsharding.NamedSharding(self.mesh, self.partition_by_axis(axis_x, axis_y))
+    return jsharding.NamedSharding(self.mesh, self.partition_by_two_axis(axis_x, axis_y))
 
   def make_caches_prefill(self):
     """Create kv caches for inference prefill"""

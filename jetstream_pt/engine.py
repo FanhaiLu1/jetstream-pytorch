@@ -88,11 +88,16 @@ class PyTorchEngine(engine_api.Engine):
     self.default_dtype = jnp.bfloat16 if env.bf16_enable else jnp.float32
     self.rng = jax.random.PRNGKey(0)
 
-    self.y_sharding = env.sharding_by_axis(1)
-    self.x_sharding = env.sharding_by_axis(0)
-    self.replicated = env.sharding_by_axis(-1)  # replicated
+    # self.y_sharding = env.sharding_by_axis(1)
+    # self.x_sharding = env.sharding_by_axis(0)
+    # self.replicated = env.sharding_by_axis(-1)  # replicated
+    
+    self.y_sharding = self.env.x_sharding
+    self.x_sharding = self.env.y_sharding
+    self.replicated = self.env.replicated  # replicated
 
     self.cache_sharding = self.env.cache_sharding
+    self.prefill_cache_sharding = self.env.prefill_cache_sharding
 
     jax.config.update("jax_enable_x64", False)
 
@@ -716,7 +721,7 @@ class PyTorchEngine(engine_api.Engine):
     """Returns the shardings necessary to transfer data between engines."""
     return Prefix(
         self.replicated,
-        self.replicated if self.env.shard_on_batch else self.cache_sharding,
+        self.prefill_cache_sharding, # self.replicated if self.env.shard_on_batch else self.cache_sharding,
         self.replicated,
     )
 
