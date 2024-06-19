@@ -84,8 +84,6 @@ class KVCachePrefill:
 
   def update(self, key, value):
     """This cache just remembers the stuff."""
-    self.cache_k = repeat_kv(key, 2)
-    self.cache_v = repeat_kv(value, 2)
 
     if self.kv_quantize:  # pretend to be quantized
       bsz, _, seq, _ = key.shape
