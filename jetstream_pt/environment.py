@@ -130,7 +130,7 @@ class JetEngineEnvironment:
     num_of_partitions = jax.device_count()
     # make mesh etc.
     self.mesh = jsharding.Mesh(
-        mesh_utils.create_device_mesh((num_of_partitions // 2, 2)),
+        mesh_utils.create_device_mesh((num_of_partitions // 2, 2), allow_split_physical_axes=True),
         axis_names=("x", "y"),
     )
     
