@@ -236,6 +236,7 @@ class PyTorchRayWorker:
     self.y_sharding = self.env.x_sharding
     self.x_sharding = self.env.y_sharding
     self.replicated = self.env.replicated  # replicated
+    self.xy_sharding_two = self.env.xy_sharding_two
     
     self.cache_sharding = self.env.cache_sharding
     self.prefill_cache_sharding = self.env.prefill_cache_sharding
@@ -243,7 +244,7 @@ class PyTorchRayWorker:
     self._compiled_call_model_prefill = jax.jit(
         self._call_model_prefill,
         donate_argnums=(1, 2),
-        out_shardings=(self.replicated, 
+        out_shardings=(self.xy_sharding_two, 
                        self.prefill_cache_sharding, #self.cache_sharding_dim if self.env.shard_on_batch else self.cache_sharding,
                        ),
     )
@@ -265,7 +266,7 @@ class PyTorchRayWorker:
         self._call_model_generate,
         donate_argnums=(2, 3, 4, 5, 6, 7),
         out_shardings=(
-            self.replicated, # self.x_sharding if self.env.shard_on_batch else self.replicated,
+            self.xy_sharding_two, # self.x_sharding if self.env.shard_on_batch else self.replicated,
             self.cache_sharding,
             self.replicated,
             self.replicated,
@@ -775,7 +776,7 @@ class PyTorchRayWorker:
 
     logits = multihost_utils.process_allgather(logits, tiled=True)
     next_token = self._sampling(logits, self.env.batch_size)
-    tokens = decode_state.tokens
+    tokens = logits = multihost_utils.process_allgather(decode_state.tokens, tiled=True) 
     print(f"-----------------> next_token shape {next_token.shape}")
     print(f"-----------------> tokens shape {tokens.shape}")
     print(f"-----------------> new_lens shape {new_lens.shape}")

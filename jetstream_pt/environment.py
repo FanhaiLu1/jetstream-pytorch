@@ -139,6 +139,9 @@ class JetEngineEnvironment:
     self.y_sharding = jsharding.NamedSharding(self.mesh, P("y", "x"))
     self.x_sharding = jsharding.NamedSharding(self.mesh, P("x", "y"))
     self.replicated = jsharding.NamedSharding(self.mesh, P())
+    self.xy_sharding_zero = jsharding.NamedSharding(self.mesh, P(("x", "y")))
+    self.xy_sharding_one = jsharding.NamedSharding(self.mesh, P(None, ("x", "y")))
+    self.xy_sharding_two = jsharding.NamedSharding(self.mesh, P(None, None, ("x", "y")))
 
     if data.shard_on_batch:
       cache_sharding_axis = 0
@@ -152,9 +155,9 @@ class JetEngineEnvironment:
       # default to last
       cache_sharding_axis = len(self.cache_shape) - 1
       
-    print(f"-----------------------------------> cache_sharding_axis {cache_sharding_axis}")  
+    print(f"-----------------------------------> cache_sharding_axis {cache_sharding_axis}")
 
-    self.cache_sharding = self.sharding_by_two_axis(axis_x=cache_sharding_axis, axis_y=0)
+    self.cache_sharding = self.sharding_by_two_axis(axis_x=1, axis_y=3)
     self.prefill_cache_sharding = self.sharding_by_two_axis(axis_x=1, axis_y=3)
     self.cache_sharding_dim = self.sharding_by_axis(1)
     self._load_sharding_config()
