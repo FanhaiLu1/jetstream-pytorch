@@ -460,7 +460,6 @@ class PyTorchRayWorker:
         input_indexes,
     )
     
-    jax.debug.breakpoint()
     jax.debug.print(" ---------------- logits shape before all gather: {}", logits.shape)
     print("f ---------------- logits shape before all gather {logits.shape}")
 
