@@ -95,6 +95,9 @@ class PyTorchEngine(engine_api.Engine):
     self.y_sharding = self.env.x_sharding
     self.x_sharding = self.env.y_sharding
     self.replicated = self.env.replicated  # replicated
+    # self.xy_sharding_zero = self.env.xy_sharding_zero
+    # self.xy_sharding_one = self.env.xy_sharding_one
+    # self.xy_sharding_two = self.env.xy_sharding_two
 
     self.cache_sharding = self.env.cache_sharding
     self.prefill_cache_sharding = self.env.prefill_cache_sharding
@@ -264,6 +267,7 @@ class PyTorchEngine(engine_api.Engine):
     if len(logits.shape) == 3:  # b, seqlen, num words
       logits = logits[0]  # seqlen, num words
 
+    print(f"f ------------------> logits shape {logits.shape}")
     token = sampling_utils.sampling(
         logits[true_length - 1],
         self.rng,
@@ -272,6 +276,8 @@ class PyTorchEngine(engine_api.Engine):
         self.env.nucleus_topp,
         self.env.temperature,
     )
+    
+    print(f"f ------------------> token length {token.shape}")
 
     # truncate to true_length didnt work need to be out side of jit
     # caches = [
@@ -726,7 +732,7 @@ class PyTorchEngine(engine_api.Engine):
   def get_decode_state_sharding(self) -> DecodeState:
     """Gets the shardings corresponding to the decode state."""
     return DecodeState(
-        self.x_sharding if self.env.shard_on_batch else self.replicated,
+        self.replicated, # self.x_sharding if self.env.shard_on_batch else self.replicated,
         self.cache_sharding,
         self.replicated,
         self.replicated,

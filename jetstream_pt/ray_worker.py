@@ -236,6 +236,7 @@ class PyTorchRayWorker:
     self.y_sharding = self.env.x_sharding
     self.x_sharding = self.env.y_sharding
     self.replicated = self.env.replicated  # replicated
+    self.xy_sharding_one = self.env.xy_sharding_one
     self.xy_sharding_two = self.env.xy_sharding_two
     
     self.cache_sharding = self.env.cache_sharding
@@ -244,7 +245,7 @@ class PyTorchRayWorker:
     self._compiled_call_model_prefill = jax.jit(
         self._call_model_prefill,
         donate_argnums=(1, 2),
-        out_shardings=(self.xy_sharding_two, 
+        out_shardings=(self.xy_sharding_one, 
                        self.prefill_cache_sharding, #self.cache_sharding_dim if self.env.shard_on_batch else self.cache_sharding,
                        ),
     )
@@ -457,6 +458,8 @@ class PyTorchRayWorker:
         batched_token,
         input_indexes,
     )
+    
+    print("f ---------------- logits shape before all gather {logits.shape}")
 
     logits = multihost_utils.process_allgather(logits, tiled=True)
     return logits, updated_caches
@@ -479,6 +482,7 @@ class PyTorchRayWorker:
     if len(logits.shape) == 3:  # b, seqlen, num words
       logits = logits[0]
 
+    print("f ---------------- logits shape {logits.shape}")
     token = np.argmax(logits[true_length - 1])
     prefix = Prefix(token, updated_caches, true_length)
     self.prefix_queue.put(prefix, block=False)
