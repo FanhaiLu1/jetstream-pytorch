@@ -461,7 +461,6 @@ class PyTorchRayWorker:
     )
     
     jax.debug.print(" ---------------- logits shape before all gather: {}", logits.shape)
-    print("f ---------------- logits shape before all gather {logits.shape}")
 
     logits = multihost_utils.process_allgather(logits, tiled=True)
     return logits, updated_caches
