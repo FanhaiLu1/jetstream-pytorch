@@ -462,7 +462,7 @@ class PyTorchRayWorker:
     
     jax.debug.print(" ---------------- logits shape before all gather: {}", logits.shape)
 
-    logits = multihost_utils.process_allgather(logits, tiled=True)
+    # logits = multihost_utils.process_allgather(logits, tiled=True)
     return logits, updated_caches
 
   def prefill_ray(
@@ -484,7 +484,7 @@ class PyTorchRayWorker:
       logits = logits[0]
 
     print("f ---------------- logits shape {logits.shape}")
-    token = np.argmax(logits[true_length - 1])
+    token = None
     prefix = Prefix(token, updated_caches, true_length)
     self.prefix_queue.put(prefix, block=False)
 
