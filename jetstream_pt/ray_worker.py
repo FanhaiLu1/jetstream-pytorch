@@ -236,8 +236,8 @@ class PyTorchRayWorker:
     self.y_sharding = self.env.x_sharding
     self.x_sharding = self.env.y_sharding
     self.replicated = self.env.replicated  # replicated
-    self.xy_sharding_one = self.env.xy_sharding_one
-    self.xy_sharding_two = self.env.xy_sharding_two
+    # self.xy_sharding_one = self.env.xy_sharding_one
+    # self.xy_sharding_two = self.env.xy_sharding_two
     
     self.cache_sharding = self.env.cache_sharding
     self.prefill_cache_sharding = self.env.prefill_cache_sharding
