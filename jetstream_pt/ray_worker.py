@@ -433,7 +433,7 @@ class PyTorchRayWorker:
     print(f"f ------------------> logits shape {logits.shape}")
     if len(logits.shape) == 3:  # b, seqlen, num words
       logits = logits[0]
-    token = jnp.argmax(logits[15])  
+    token = jnp.argmax(logits[0 :15])
     return torchjax.from_torch((token, caches_res))
 
   def _sampling(self, logits: Any, batch_size: int) -> np.ndarray:
