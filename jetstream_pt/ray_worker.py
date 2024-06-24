@@ -424,7 +424,17 @@ class PyTorchRayWorker:
     with torch_xla2.default_env():
       res = torch.func.functional_call(self.pt_model, paramst, argst)[0]
     caches_res = [c.state() for c in caches]
-    return torchjax.from_torch((res, caches_res))
+    
+    logits = res
+    jax.debug.print(" ---------------- logits shape original: {}", logits.shape)
+    if len(logits.shape) == 3:  # b, seqlen, num words
+      logits = logits[0]  # seqlen, num words
+
+    print(f"f ------------------> logits shape {logits.shape}")
+    if len(logits.shape) == 3:  # b, seqlen, num words
+      logits = logits[0]
+    token = jnp.argmax(logits[15])  
+    return torchjax.from_torch((token, caches_res))
 
   def _sampling(self, logits: Any, batch_size: int) -> np.ndarray:
     if len(logits.shape) == 2:
@@ -484,7 +494,7 @@ class PyTorchRayWorker:
       logits = logits[0]
 
     print("f ---------------- logits shape {logits.shape}")
-    token = None
+    token = logits
     prefix = Prefix(token, updated_caches, true_length)
     self.prefix_queue.put(prefix, block=False)
 
