@@ -425,7 +425,7 @@ class AttentionKernel:
       # For XLA matmul performance boost
       # output = torch.matmul(scores, values)
       self.env.apply_sharding(output, axis=self.shard_axis)
-      return output
+    return output
 
 
 class Int8KVAttentionKernel:

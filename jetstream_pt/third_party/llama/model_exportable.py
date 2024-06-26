@@ -120,7 +120,7 @@ class TransformerBlock(nn.Module):
       ragged_batch_index=None,
       ragged_block_index=None,
   ):
-    with jax.named_scope("Attention"):
+    with jax.named_scope("Attention_test2"):
       attn = self.attention.forward(
           self.attention_norm(x),
           freqs_cis,
@@ -131,13 +131,13 @@ class TransformerBlock(nn.Module):
           ragged_batch_index,
           ragged_block_index,
       )
-    with jax.named_scope("ffn_norm"):
+    with jax.named_scope("Ffn_norm"):
       h = x + attn
       ffns = self.ffn_norm(h)
 
-    with jax.named_scope("ffn"):
+    with jax.named_scope("Feed_forward"):
       out = h + self.feed_forward.forward(ffns)
-      return out
+    return out
 
 
 def precompute_freqs_cis(
@@ -232,7 +232,7 @@ class Transformer(nn.Module):
     ), f"Number of caches ({len(caches)}) and layers ({len(self.layers)}) dont match"
     end = None if start is None else (start + input_pos) % self.env.cache_len
     for layer, cache in zip(self.layers, caches):
-      with jax.named_scope("TransformerBlock"):
+      with jax.named_scope("TransformerBlock_Layer_" + str(layer.layer_id)):
         h = layer(
             h,
             freqs_cis,
