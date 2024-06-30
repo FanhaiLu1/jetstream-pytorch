@@ -28,7 +28,7 @@ pip install flax
 pip install tensorflow-text
 pip install tensorflow
 
-pip install ray[default]==2.22.0
+pip install ray[default]==2.22.0 debugpy
 # torch cpu
 pip install torch==2.3.1+cpu --index-url https://download.pytorch.org/whl/cpu
 pip install tensorflow flatbuffers absl-py sentencepiece seqio google-cloud-storage 
