@@ -909,6 +909,7 @@ class PyTorchRayWorker:
       if k.startswith("layers") and not k.startswith("layers.0"):
         continue
       print(f"Name: {k}, shape: {v.shape} x {v.dtype}")
+      jax.debug.visualize_array_sharding(v)
     return jax_weights
 
   def load_params_ray(self):
