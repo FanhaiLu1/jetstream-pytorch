@@ -49,7 +49,6 @@ def create_engine():
       sharding_config=FLAGS.sharding_config,
       enable_jax_profiler=FLAGS.enable_jax_profiler,
       jax_profiler_port=FLAGS.jax_profiler_port,
-      shard_on_batch=FLAGS.shard_on_batch,
   )
 
   print("Initialize engine", time.perf_counter() - start)
@@ -90,11 +89,14 @@ def main(argv):
   for i in range(100):
     for prompt in prompts:
       slot = random.randint(0, FLAGS.batch_size - 1)
+      t1 = time.time()
       tokens, true_length = token_utils.tokenize_and_pad(
           prompt, vocab, is_bos=True, jax_padding=False
       )
       # print(f"---- Input prompts are: {prompt}")
       print(f"---- Encoded tokens are: {tokens}")
+      time_taken = time.time() - t1
+      print(f"-----------> encode time: {time_taken}")  
 
       # pylint: disable-next=all
       t1 = time.time()
