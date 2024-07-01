@@ -594,7 +594,8 @@ class Attention(nn.Module):
             [self.q_size, self.kv_size, self.kv_size], dim=-1
         )
       else:
-        xq, xk, xv = self.wq(x), self.wk(x), self.wv(x)
+        with jax.named_scope("xq_xk_xv_cal"):
+          xq, xk, xv = self.wq(x), self.wk(x), self.wv(x)
       xq = xq.view(bsz, seqlen, self.n_heads, self.head_dim)
       xk = xk.view(bsz, seqlen, self.n_kv_heads, self.head_dim)
       xv = xv.view(bsz, seqlen, self.n_kv_heads, self.head_dim)

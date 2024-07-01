@@ -128,30 +128,30 @@ class JetEngineEnvironment:
     P = jax.sharding.PartitionSpec
 
     num_of_partitions = jax.device_count()
-    # self.mesh = jsharding.Mesh(
-    #     mesh_utils.create_device_mesh((num_of_partitions, 1), allow_split_physical_axes=True),
-    #     axis_names=("x", "y"),
-    # )
-    
-    # print(f"-----------------------------------> num_of_partitions {num_of_partitions}, shape: {self.mesh.shape}")  
-
-    # self.y_sharding = jsharding.NamedSharding(self.mesh, P(None, "x"))
-    # self.x_sharding = jsharding.NamedSharding(self.mesh, P("x"))
-    # self.replicated = jsharding.NamedSharding(self.mesh, P())
-    # make mesh etc.
     self.mesh = jsharding.Mesh(
-        mesh_utils.create_device_mesh((num_of_partitions // 2, 2), allow_split_physical_axes=True),
+        mesh_utils.create_device_mesh((num_of_partitions, 1), allow_split_physical_axes=True),
         axis_names=("x", "y"),
     )
     
     print(f"-----------------------------------> num_of_partitions {num_of_partitions}, shape: {self.mesh.shape}")  
 
-    self.y_sharding = jsharding.NamedSharding(self.mesh, P("y", "x"))
-    self.x_sharding = jsharding.NamedSharding(self.mesh, P("x", "y"))
+    self.y_sharding = jsharding.NamedSharding(self.mesh, P(None, "x"))
+    self.x_sharding = jsharding.NamedSharding(self.mesh, P("x"))
     self.replicated = jsharding.NamedSharding(self.mesh, P())
-    self.xy_sharding_zero = jsharding.NamedSharding(self.mesh, P(("x", "y")))
-    self.xy_sharding_one = jsharding.NamedSharding(self.mesh, P(None, ("x", "y")))
-    self.xy_sharding_two = jsharding.NamedSharding(self.mesh, P(None, None, ("x", "y")))
+    # make mesh etc.
+    # self.mesh = jsharding.Mesh(
+    #     mesh_utils.create_device_mesh((num_of_partitions // 2, 2), allow_split_physical_axes=True),
+    #     axis_names=("x", "y"),
+    # )
+    
+    # print(f"-----------------------------------> num_of_partitions {num_of_partitions}, shape: {self.mesh.shape}")  
+
+    # self.y_sharding = jsharding.NamedSharding(self.mesh, P("y", "x"))
+    # self.x_sharding = jsharding.NamedSharding(self.mesh, P("x", "y"))
+    # self.replicated = jsharding.NamedSharding(self.mesh, P())
+    # self.xy_sharding_zero = jsharding.NamedSharding(self.mesh, P(("x", "y")))
+    # self.xy_sharding_one = jsharding.NamedSharding(self.mesh, P(None, ("x", "y")))
+    # self.xy_sharding_two = jsharding.NamedSharding(self.mesh, P(None, None, ("x", "y")))
 
     if data.shard_on_batch:
       cache_sharding_axis = 0
@@ -167,8 +167,10 @@ class JetEngineEnvironment:
       
     print(f"-----------------------------------> cache_sharding_axis {cache_sharding_axis}")
 
-    self.cache_sharding = self.sharding_by_two_axis(axis_x=1, axis_y=3)
-    self.prefill_cache_sharding = self.sharding_by_two_axis(axis_x=1, axis_y=3)
+    self.cache_sharding = self.sharding_by_axis(cache_sharding_axis)
+    self.prefill_cache_sharding = self.sharding_by_axis(cache_sharding_axis)
+    # self.cache_sharding = self.sharding_by_two_axis(axis_x=1, axis_y=3)
+    # self.prefill_cache_sharding = self.sharding_by_two_axis(axis_x=1, axis_y=3)
     self.cache_sharding_dim = self.sharding_by_axis(1)
     self._load_sharding_config()
 
@@ -203,6 +205,10 @@ class JetEngineEnvironment:
 
   def sharding_by_axis(self, axis):
     """return sharding partition spc by axis, options are x, y, -1 or Noe"""
+    if axis == 0:
+      return self.x_sharding
+    if axis == 1:
+      return self.y_sharding
     return jsharding.NamedSharding(self.mesh, self.partition_by_axis(axis))
   
   def partition_by_two_axis(self, axis_x=None, axis_y=None):
