@@ -227,9 +227,9 @@ class PyTorchRayWorker:
     self.env = env
     self.default_dtype = jnp.bfloat16 if env.bf16_enable else jnp.float32
 
-    self.y_sharding = env.sharding_by_axis(1)
-    self.x_sharding = env.sharding_by_axis(0)
-    self.replicated = env.sharding_by_axis(-1)  # replicated
+    self.y_sharding = env.y_sharding
+    self.x_sharding = env.x_sharding
+    self.replicated = env.replicated  # replicated
     self.cache_sharding = self.y_sharding
 
     self._compiled_call_model_prefill = jax.jit(
