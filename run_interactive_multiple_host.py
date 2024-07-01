@@ -87,7 +87,7 @@ def main(argv):
       # # pylint: disable-next=all
       # "<s>[INST] <<SYS>>\nYou are an AI assistant. You will be given a task. You must generate a detailed and long answer.\n<</SYS>>\n\nContinue the following story.\n\nKay didn't have shoes that fit her feet properly. She only wore sneakers, because the \nChoose from: [I] shoes  fitted badly. [II] sneakers  fitted badly. [/INST]",
   ]
-  for i in range(10):
+  for i in range(100):
     for prompt in prompts:
       slot = random.randint(0, FLAGS.batch_size - 1)
       tokens, true_length = token_utils.tokenize_and_pad(
@@ -110,29 +110,29 @@ def main(argv):
       print(f"-----------> insert time: {time_taken}")    
       sampled_tokens_list = []
       complete = np.zeros((1,), dtype=np.bool_)
-      while True:
-        # pylint: disable-next=all
-        t1 = time.time()
-        decode_state, result_tokens = engine.generate(None, decode_state)
-        time_taken = time.time() - t1
-        print(f"-----------> decode time: {time_taken}")
-        result_tokens = result_tokens.convert_to_numpy()
+      # while True:
+      #   # pylint: disable-next=all
+      #   t1 = time.time()
+      #   decode_state, result_tokens = engine.generate(None, decode_state)
+      #   time_taken = time.time() - t1
+      #   print(f"-----------> decode time: {time_taken}")
+      #   result_tokens = result_tokens.convert_to_numpy()
 
-        slot_data = result_tokens.get_result_at_slot(slot)
-        slot_tokens = slot_data.tokens
-        slot_lengths = slot_data.lengths
+      #   slot_data = result_tokens.get_result_at_slot(slot)
+      #   slot_tokens = slot_data.tokens
+      #   slot_lengths = slot_data.lengths
         
-        output, complete = token_utils.process_result_tokens(
-          tokenizer=tokenizer,
-          slot=slot,
-          slot_max_length=max_output_length,
-          result_tokens=result_tokens,
-          complete=complete,
-        )
-        if complete[0]:
-          break
-        token_ids = output[0].token_ids
-        sampled_tokens_list.append(token_ids)
+      #   output, complete = token_utils.process_result_tokens(
+      #     tokenizer=tokenizer,
+      #     slot=slot,
+      #     slot_max_length=max_output_length,
+      #     result_tokens=result_tokens,
+      #     complete=complete,
+      #   )
+      #   if complete[0]:
+      #     break
+      #   token_ids = output[0].token_ids
+      #   sampled_tokens_list.append(token_ids)
 
       # print("---- All output tokens.")
       # print(sampled_tokens_list)
