@@ -191,7 +191,7 @@ class JetEngineEnvironment:
     if not isinstance(tensor, torch_xla2.tensor.XLATensor2):
       return
     x, y = axis
-    sharding_spec = self.partition_by_two_axis(axis_x=x, axis_y=y)
+    sharding_spec = self.sharding_by_two_axis(axis_x=x, axis_y=y)
     # pylint: disable-next=all
     tensor._elem = jax.lax.with_sharding_constraint(tensor._elem, sharding_spec)
 
