@@ -49,52 +49,67 @@ def main(argv):
   decode_state = engine.init_decode_state()
   prompts: List[str] = [
       "I believe the meaning of life is",
-      "To add an element to an ArrayList of a specific class type in Java, you can follow the following steps:\n\n1. Create an instance of the class to be added.\n2. Get a reference to the ArrayList.\n3. Call the `add()` method on the ArrayList, passing the instance of the class as the argument.\n\nHere's an example of how to add an object of type `Person` to an ArrayList of type `ArrayList<Person>`:\n```csharp\n// Create a new instance of the Person class\nPerson person = new Person(\"John\", 25);\n\n// Get a reference to the ArrayList\nArrayList<Person> peopleList = new ArrayList<>();\n\n// Add the person object to the ArrayList\npeopleList.add(person);\n```\nIn this example, the `Person` class is assumed to have a constructor that takes two arguments: a String for the person's name, and an int for their age. You can substitute your own class and constructor as necessary.",
-      "<s>[INST] <<SYS>>\nYou are an AI assistant. User will you give you a task. Your goal is to complete the task as faithfully as you can. While performing the task think step-by-step and justify your steps.\n<</SYS>>\n\nQuestion 1: What is commercial real estate finance?\nQuestion 2: What are Commercial Real Estate services?\nOptions are:\n[a]. no.\n[b]. yes.\nWould the answer to these two questions be the same? [/INST]",
-      "<s>[INST] <<SYS>>\nYou are an AI assistant that helps people find information. Provide a detailed answer so user don\u2019t need to search outside to understand the answer.\n<</SYS>>\n\nUse reasoning to lead to the answer of the following question:\nWhere are you likely to find water underneath?\nOptions:\n- toilet\n- sink\n- jar\n- bridge\n- house\n Reasoning process: [/INST",
-      "<s>[INST] <<SYS>>\nYou are an AI assistant. You will be given a task. You must generate a detailed and long answer.\n<</SYS>>\n\nContinue the following story.\n\nKay didn't have shoes that fit her feet properly. She only wore sneakers, because the \nChoose from: [I] shoes  fitted badly. [II] sneakers  fitted badly. [/INST]",
+      # "To add an element to an ArrayList of a specific class type in Java, you can follow the following steps:\n\n1. Create an instance of the class to be added.\n2. Get a reference to the ArrayList.\n3. Call the `add()` method on the ArrayList, passing the instance of the class as the argument.\n\nHere's an example of how to add an object of type `Person` to an ArrayList of type `ArrayList<Person>`:\n```csharp\n// Create a new instance of the Person class\nPerson person = new Person(\"John\", 25);\n\n// Get a reference to the ArrayList\nArrayList<Person> peopleList = new ArrayList<>();\n\n// Add the person object to the ArrayList\npeopleList.add(person);\n```\nIn this example, the `Person` class is assumed to have a constructor that takes two arguments: a String for the person's name, and an int for their age. You can substitute your own class and constructor as necessary.",
+      # "<s>[INST] <<SYS>>\nYou are an AI assistant. User will you give you a task. Your goal is to complete the task as faithfully as you can. While performing the task think step-by-step and justify your steps.\n<</SYS>>\n\nQuestion 1: What is commercial real estate finance?\nQuestion 2: What are Commercial Real Estate services?\nOptions are:\n[a]. no.\n[b]. yes.\nWould the answer to these two questions be the same? [/INST]",
+      # "<s>[INST] <<SYS>>\nYou are an AI assistant that helps people find information. Provide a detailed answer so user don\u2019t need to search outside to understand the answer.\n<</SYS>>\n\nUse reasoning to lead to the answer of the following question:\nWhere are you likely to find water underneath?\nOptions:\n- toilet\n- sink\n- jar\n- bridge\n- house\n Reasoning process: [/INST",
+      # "<s>[INST] <<SYS>>\nYou are an AI assistant. You will be given a task. You must generate a detailed and long answer.\n<</SYS>>\n\nContinue the following story.\n\nKay didn't have shoes that fit her feet properly. She only wore sneakers, because the \nChoose from: [I] shoes  fitted badly. [II] sneakers  fitted badly. [/INST]",
   ]
-  for prompt in prompts:
-    slot = random.randint(0, FLAGS.batch_size - 1)
-    tokens, true_length = tokenizer.encode(prompt)
+  for i in range(100):
+    for prompt in prompts:
+      slot = random.randint(0, FLAGS.batch_size - 1)
+      tokens, true_length = tokenizer.encode(prompt)
 
-    print(f"---- Input prompts are: {prompt}")
-    print(f"---- Encoded tokens are: {tokens}")
+      print(f"---- Input prompts are: {prompt}")
+      print(f"---- Encoded tokens are: {tokens}")
 
-    # pylint: disable-next=all
-    prefill_result = engine.prefill(
-        params=params, padded_tokens=tokens, true_length=true_length
-    )
-    # pylint: disable-next=all
-    decode_state = engine.insert(prefill_result, decode_state, slot=slot)
-    sampled_tokens_list = []
-    print(f"---- Streaming decode started on #slot{slot}.")
-    complete = np.zeros((1,), dtype=np.bool_)
-    while True:
-      if profiling_output and not profiling_prefill:
-        jax.profiler.start_trace(profiling_output)
-      decode_state, result_tokens = engine.generate(params, decode_state)
-      if profiling_output and not profiling_prefill:
-        jax.profiler.stop_trace()
-      result_tokens = result_tokens.convert_to_numpy()
-      output, complete = token_utils.process_result_tokens(
-          tokenizer=tokenizer,
-          slot=slot,
-          slot_max_length=max_output_length,
-          result_tokens=result_tokens,
-          complete=complete,
+      # pylint: disable-next=all
+      t1 = time.time()
+      prefill_result = engine.prefill(
+          params=params, padded_tokens=tokens, true_length=true_length
       )
-      if complete[0]:
-        break
-      token_ids = output[0].token_ids
-      sampled_tokens_list.extend(token_ids)
+      
+      time_taken = time.time() - t1
+      print(f"-----------> prefill time: {time_taken}")
+      # pylint: disable-next=all
+      t1 = time.time()
+      decode_state = engine.insert(prefill_result, decode_state, slot=slot)
+      if profiling_output and i == 1:
+        jax.profiler.start_trace(profiling_output)
+      time_taken = time.time() - t1
+      print(f"-----------> insert time: {time_taken}")
+      sampled_tokens_list = []
+      print(f"---- Streaming decode started on #slot{slot}.")
+      complete = np.zeros((1,), dtype=np.bool_)
+      # while True:
+      #   if profiling_output and not profiling_prefill:
+      #     jax.profiler.start_trace(profiling_output)
+        
+      #   t1 = time.time()
+      #   decode_state, result_tokens = engine.generate(params, decode_state)
+      #   time_taken = time.time() - t1
+      #   print(f"-----------> decode time: {time_taken}")
+      #   print(f"---- Streaming decode started on #slot{slot}.")
+      #   if profiling_output and not profiling_prefill:
+      #     jax.profiler.stop_trace()
+      #   result_tokens = result_tokens.convert_to_numpy()
+      #   output, complete = token_utils.process_result_tokens(
+      #       tokenizer=tokenizer,
+      #       slot=slot,
+      #       slot_max_length=max_output_length,
+      #       result_tokens=result_tokens,
+      #       complete=complete,
+      #   )
+      #   if complete[0]:
+      #     break
+      #   token_ids = output[0].token_ids
+      #   sampled_tokens_list.extend(token_ids)
 
-    print("---- All output tokens.")
-    print(sampled_tokens_list)
-    print("---- All output text.")
-    print(tokenizer.decode(sampled_tokens_list))
+      # print("---- All output tokens.")
+      # print(sampled_tokens_list)
+      # print("---- All output text.")
+      # print(tokenizer.decode(sampled_tokens_list))
 
-  if profiling_output and profiling_prefill:
+  if profiling_output:
     jax.profiler.stop_trace()
 
 
