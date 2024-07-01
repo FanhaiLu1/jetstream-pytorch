@@ -178,11 +178,20 @@ class JetEngineEnvironment:
     return getattr(self._data, name)
 
   # This is used by model to add activation sharding.
-  def apply_sharding(self, tensor, *, axis: int | None):
+  # def apply_sharding(self, tensor, *, axis: int | None):
+  #   """Apply sharding for tensor"""
+  #   if not isinstance(tensor, torch_xla2.tensor.XLATensor2):
+  #     return
+  #   sharding_spec = self.sharding_by_axis(axis)
+  #   # pylint: disable-next=all
+  #   tensor._elem = jax.lax.with_sharding_constraint(tensor._elem, sharding_spec)
+  
+  def apply_sharding(self, tensor, *, axis: Tuple[int|None, int|None] | None):
     """Apply sharding for tensor"""
     if not isinstance(tensor, torch_xla2.tensor.XLATensor2):
       return
-    sharding_spec = self.sharding_by_axis(axis)
+    x, y = axis
+    sharding_spec = self.partition_by_two_axis(axis_x=x, axis_y=y)
     # pylint: disable-next=all
     tensor._elem = jax.lax.with_sharding_constraint(tensor._elem, sharding_spec)
 

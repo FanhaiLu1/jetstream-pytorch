@@ -363,8 +363,9 @@ class AttentionKernel:
 
   def __init__(self, env):
     self.env = env
-    self.shard_axis = 0 if self.env.shard_on_batch else 1
-    qkv_pspec = self.env.partition_by_axis(self.shard_axis)  # Number of heads
+    # self.shard_axis = 0 if self.env.shard_on_batch else 1
+    self.shard_axis = (1, 3)
+    qkv_pspec = self.env.partition_by_axis(1)  # Number of heads
     others_pspec = self.env.partition_by_axis()
     self.dense_attention = ak.dense_attention
     self.ragged_attention = ak.RaggedAttentionKernel(
@@ -599,7 +600,8 @@ class Attention(nn.Module):
       xk = xk.view(bsz, seqlen, self.n_kv_heads, self.head_dim)
       xv = xv.view(bsz, seqlen, self.n_kv_heads, self.head_dim)
 
-      shard_axis = 0 if self.env.shard_on_batch else 2
+      # shard_axis = 0 if self.env.shard_on_batch else 2
+      shard_axis = (2, 3)
       self.env.apply_sharding(xq, axis=shard_axis)
       self.env.apply_sharding(xk, axis=shard_axis)
       self.env.apply_sharding(xv, axis=shard_axis)
