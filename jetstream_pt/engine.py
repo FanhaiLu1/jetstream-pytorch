@@ -37,6 +37,7 @@ from jetstream_pt import cache_manager
 from jetstream_pt import quantize
 from jetstream_pt import torchjax
 from jetstream_pt.environment import JetEngineEnvironment, JetEngineEnvironmentData, QuantizationConfig
+from jetstream_pt.page_ attention_manager import PageAttentionManager
 from jetstream_pt.third_party.llama import model_exportable as llama_model, model_args
 from jetstream_pt.third_party.gemma import config as gemma_config, model as gemma_model
 from jetstream_pt.third_party.mixtral import config as mixtral_config, model as mixtral_model

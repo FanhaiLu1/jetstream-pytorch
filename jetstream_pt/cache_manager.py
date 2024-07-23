@@ -225,3 +225,58 @@ class Int8KVCacheGenerate:
       self.k_scaler[batch, :, self.input_pos, :] = kscale.squeeze(2)
       self.v_scaler[batch, :, self.input_pos, :] = vscale.squeeze(2)
     return self.cache_k, self.cache_v, self.k_scaler, self.v_scaler
+
+
+# Refactor out cache management
+# Easier to test for quantized kv cache
+class PageKVCacheGenerate:
+  """Kvache generator without quantization"""
+
+  def __init__(
+      self,
+      cache_k: torch.Tensor,  # previous cache
+      cache_v: torch.Tensor,  # previous cache
+      position: int,  # position to store the cache
+      sharding,
+      env=None,
+  ):
+    super().__init__()
+    self.cache_k = cache_k
+    self.cache_v = cache_v
+    self.pos = position
+    self.sharding = sharding
+    self.env = env
+
+  def update(self, key, value):
+    """Update kv cache"""
+    keyj, valuej = torchjax.to_torch((key, value))
+    if self.env.ring_buffer:
+      # pylint: disable-next=all
+      self.cache_k._elem = self.cache_k._elem.at[:, :, self.pos].set(keyj)
+      # pylint: disable-next=all
+      self.cache_v._elem = self.cache_v._elem.at[:, :, self.pos].set(valuej)
+    else:
+      batch = jnp.arange(self.env.batch_size)
+      # pylint: disable-next=all
+      self.cache_k._elem = self.cache_k._elem.at[batch, :, self.pos].set(
+          keyj.squeeze(2)
+      )
+      # pylint: disable-next=all
+      self.cache_v._elem = self.cache_v._elem.at[batch, :, self.pos].set(
+          valuej.squeeze(2)
+      )
+    return self.cache_k, self.cache_v
+
+  def state(self):
+    """Get kv cache state"""
+    # pylint: disable-next=all
+    return self.cache_k.jax(), self.cache_v.jax()
+
+  @classmethod
+  def empty(cls, shape, device, bf16_enable, env):
+    """Create empty kv caches"""
+    default_dtype = jnp.bfloat16 if bf16_enable else jnp.float32
+    k = jnp.zeros(shape, device=device, dtype=default_dtype)
+    v = jnp.zeros(shape, device=device, dtype=default_dtype)
+    k, v = torchjax.to_torch((k, v))
+    return cls(k, v, 0, device, env=env)  
