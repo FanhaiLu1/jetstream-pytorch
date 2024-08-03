@@ -121,6 +121,10 @@ class JetEngineEnvironmentData:
 
   testing_seed: int = 0
 
+  total_num_pages: int = 0
+  
+  page_size: int = 64
+
 
 # pylint: disable-next=all
 class JetEngineEnvironment:
@@ -137,6 +141,7 @@ class JetEngineEnvironment:
     self.testing = self._data.testing
     self.testing_seed = self._data.testing_seed
     self.ring_buffer = self._data.ring_buffer
+    self.page_attention = self._data.page_size > 0
 
     if not self.ring_buffer:
       self.lazy_cache_update = True
@@ -193,6 +198,10 @@ class JetEngineEnvironment:
       # cannot shard on an axis that is 1
       # default to last
       self.cache_sharding_axis = len(self.cache_shape) - 1
+    
+    if self.page_attention > 0:
+      self.cache_sharding_axis = 0
+        
 
     self.cache_sharding = self.sharding_by_axis(self.cache_sharding_axis)
     self._load_sharding_config()
@@ -247,6 +256,12 @@ class JetEngineEnvironment:
       if self._data.quant_config.enable_kv_quantization:
         caches.append(
             cache_manager.Int8KVCacheGenerate.empty(
+                self.cache_shape, self.cache_sharding, env=self
+            )
+        )
+      elif self.page_attention:
+        caches.append(
+            cache_manager.PageKVCacheGenerate.empty(
                 self.cache_shape, self.cache_sharding, env=self
             )
         )

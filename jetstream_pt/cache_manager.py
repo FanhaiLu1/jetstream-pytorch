@@ -654,3 +654,189 @@ class Int8KVCacheGenerate:
             self.new_v_scaler,
             self.input_pos,
         )
+
+
+class PageKVCacheGenerate:
+  """Page Kvache generator without quantization"""
+
+  # pylint: disable=too-many-instance-attributes
+  # More than 7 is reasonable in this case.
+  def __init__(
+      self,
+      cache_k: torch.Tensor,  # previous cache
+      cache_v: torch.Tensor,  # previous cache
+      position: int | torch.Tensor,  # position to store the cache
+      sharding,
+      env=None,
+  ):
+    super().__init__()
+    self.cache_k = cache_k
+    self.cache_v = cache_v
+    self.pos = position
+    self.sharding = sharding
+    self.env = env
+
+
+
+  # pylint: disable=method-hidden
+  # False alarm. The jit above doesn't hide this method.
+  def update_single_cache_line(self, cache_k, cache_v, new_ks, new_vs, pos):
+    """The shard map version of single cache line update."""
+    b = cache_k.shape[-4]
+    for bb, pp in enumerate(pos.reshape(b)):
+      slice_dim = 0
+      update_start_indices = (bb, 0, pp, 0)
+      if self.env.generate_cache_stacked:
+        if self.env.new_cache_stacked:
+          slice_dim = 1
+          update_start_indices = (0, bb, 0, pp, 0)
+      # We are not handling generate_cache_stacked=True new_cache_stacked=False here
+      new_ks_slice = jax.lax.dynamic_slice_in_dim(new_ks, bb, 1, slice_dim)
+      new_vs_slice = jax.lax.dynamic_slice_in_dim(new_vs, bb, 1, slice_dim)
+      cache_k = jax.lax.dynamic_update_slice(
+          cache_k, new_ks_slice, update_start_indices
+      )
+      cache_v = jax.lax.dynamic_update_slice(
+          cache_v, new_vs_slice, update_start_indices
+      )
+    return cache_k, cache_v
+
+  def finalize(self):
+    """Finalize the cache operation and updates the cache."""
+    if not self.env.lazy_cache_update:
+      return
+
+    if self.env.ring_buffer:
+      # Assume no cache stack for ring buffer
+      # pylint: disable-next=all
+      self.cache_k._elem = (
+          self.cache_k.jax().at[..., self.input_pos, :].set(self.new_ks.jax())
+      )
+      # pylint: disable-next=all
+      self.cache_v._elem = (
+          self.cache_v.jax().at[..., self.input_pos, :].set(self.new_vs.jax())
+      )
+    else:
+      if self.env.generate_cache_stacked:
+        _, b, head, _, dim = self.cache_k.shape
+        if self.env.new_cache_stacked:
+          self.cache_k, self.cache_v = torch_xla2.interop.call_jax(
+              self.update_single_cache_line,
+              self.cache_k,
+              self.cache_v,
+              self.new_ks,
+              self.new_vs,
+              self.input_pos,
+          )
+        else:
+          for i in range(self.env.num_layers):
+            # pylint: disable-next=all
+            self.cache_k._elem = (
+                self.cache_k.jax()
+                .at[i, self.batch, :, self.input_pos, :]
+                .set(self.new_ks[i].jax().reshape(b, head, dim))
+            )
+            # pylint: disable-next=all
+            self.cache_v._elem = (
+                self.cache_v.jax()
+                .at[i, self.batch, :, self.input_pos, :]
+                .set(self.new_vs[i].jax().reshape(b, head, dim))
+            )
+      else:
+        # Try to use shard_map to get rid of the data copy
+        self.cache_k, self.cache_v = torch_xla2.interop.call_jax(
+            self.update_single_cache_line,
+            self.cache_k,
+            self.cache_v,
+            self.new_ks,
+            self.new_vs,
+            self.input_pos,
+        )
+
+  def update(self, key, value, layer_id: int):
+    """Update kv cache"""
+    keyj, valuej = torchjax.to_torch((key, value))
+    if self.env.lazy_cache_update:
+      if self.env.new_cache_stacked:
+        assert (
+            self.env.generate_cache_stacked
+        ), "When new cache stacked, must have generate_cache_stacked!"
+        self.new_ks[layer_id, ...] = keyj
+        self.new_vs[layer_id, ...] = valuej
+        return self.cache_k[layer_id], self.cache_v[layer_id]
+
+      # Generate cache stacked, but new cache unstacked
+      if self.env.generate_cache_stacked:
+        self.new_ks.append(keyj)
+        self.new_vs.append(valuej)
+        return self.cache_k[layer_id], self.cache_v[layer_id]
+
+      # all cache unstacked
+      self.new_ks = keyj
+      self.new_vs = valuej
+      return self.cache_k, self.cache_v
+
+    if self.env.ring_buffer:
+      assert (
+          not self.env.new_cache_stacked and not self.env.generate_cache_stacked
+      ), "Ring buffer doesn't support stacked cache."
+      # pylint: disable-next=all
+      self.cache_k._elem = (
+          self.cache_k.jax().at[..., self.input_pos, :].set(keyj)
+      )
+      # pylint: disable-next=all
+      self.cache_v._elem = (
+          self.cache_v.jax().at[..., self.input_pos, :].set(valuej)
+      )
+      return self.cache_k, self.cache_v
+
+    # Non lazy cache update, non ring buffer, generate cache stacked
+    if self.env.generate_cache_stacked:
+      # pylint: disable-next=all
+      self.cache_k._elem = (
+          self.cache_k.jax()
+          .at[layer_id, self.batch, :, self.input_pos, :]
+          .set(keyj.squeeze(2))
+      )
+      # pylint: disable-next=all
+      self.cache_v._elem = (
+          self.cache_v.jax()
+          .at[layer_id, self.batch, :, self.input_pos, :]
+          .set(valuej.squeeze(2))
+      )
+      return self.cache_k[layer_id], self.cache_v[layer_id]
+
+    # Non lazy cache update, non ring buffer, generate cache non stacked
+    # pylint: disable-next=all
+    self.cache_k._elem = (
+        self.cache_k.jax()
+        .at[self.batch, :, self.input_pos, :]
+        .set(keyj.squeeze(2))
+    )
+    # pylint: disable-next=all
+    self.cache_v._elem = (
+        self.cache_v.jax()
+        .at[self.batch, :, self.input_pos, :]
+        .set(valuej.squeeze(2))
+    )
+    return self.cache_k, self.cache_v
+
+  def state(self):
+    """Get kv cache state"""
+    return self.cache_k.jax(), self.cache_v.jax()
+
+  @classmethod
+  def empty(cls, shape, device, env):
+    """Create empty kv caches"""
+    default_dtype = jnp.bfloat16 if env.bf16_enable else jnp.float32
+    in_shape = shape
+    if env.testing:
+      key = jax.random.key(env.testing_seed)
+      k_key, v_key = jax.random.split(key)
+      k = jax.random.uniform(k_key, shape=in_shape, dtype=default_dtype)
+      v = jax.random.uniform(v_key, shape=in_shape, dtype=default_dtype)
+    else:
+      k = jnp.zeros(in_shape, device=device, dtype=default_dtype)
+      v = jnp.zeros(in_shape, device=device, dtype=default_dtype)
+    k, v = torchjax.to_torch((k, v))
+    return cls(k, v, 0, device, env=env)        
