@@ -87,7 +87,7 @@ class JetEngineEnvironmentData:
   # Whether to enable ragged multi head attention.
   ragged_mha: bool = False
 
-  # The block size for the ragged attention.
+  # The block size for the ragged attention or page attention.
   block_size: int = 512
 
   # Starting position
@@ -95,6 +95,12 @@ class JetEngineEnvironmentData:
 
   # Ring buffer
   ring_buffer: bool = True
+  
+  # total number pages per lay
+  total_num_pages: int = 0
+
+  # page size per page
+  page_size: int = 64
 
   # Variables used in token sampling
   # sampling algorithm to use ("greedy", "weighted", "neucleus", "topk")
@@ -123,6 +129,7 @@ class JetEngineEnvironment:
     self.block_size = self._data.block_size
     self.starting_position = self._data.starting_position
     self.ring_buffer = self._data.ring_buffer
+    self.page_attention = self._data.total_num_pages > 0
     P = jax.sharding.PartitionSpec
 
     num_of_partitions = jax.device_count()
@@ -136,19 +143,19 @@ class JetEngineEnvironment:
     self.x_sharding = jsharding.NamedSharding(self.mesh, P("x"))
     self.replicated = jsharding.NamedSharding(self.mesh, P())
 
-    if data.shard_on_batch:
-      cache_sharding_axis = 0
+    if data.shard_on_batch or self.page_attention:
+      self.cache_sharding_axis = 0
     else:
-      cache_sharding_axis = self.attention_kv_axis_names.index(
+      self.cache_sharding_axis = self.attention_kv_axis_names.index(
           self.kv_cache_shard_axis
       )
-
-    if self.cache_shape[cache_sharding_axis] == 1:
+      
+    if self.cache_shape[self.cache_sharding_axis] == 1:
       # cannot shard on an axis that is 1
       # default to last
-      cache_sharding_axis = len(self.cache_shape) - 1
+      self.cache_sharding_axis = len(self.cache_shape) - 1
 
-    self.cache_sharding = self.sharding_by_axis(cache_sharding_axis)
+    self.cache_sharding = self.sharding_by_axis(self.cache_sharding_axis)
     self._load_sharding_config()
 
   def _load_sharding_config(self):
@@ -201,6 +208,12 @@ class JetEngineEnvironment:
         caches.append(
             cache_manager.Int8KVCacheGenerate.empty(
                 shape, self.cache_sharding, self.bf16_enable, env=self
+            )
+        )
+      elif self.page_attention:
+        caches.append(
+            cache_manager.PageKVCacheGenerate.empty(
+                shape, self.cache_sharding, env=self
             )
         )
       else:

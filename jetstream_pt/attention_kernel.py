@@ -1,10 +1,13 @@
+from collections.abc import Callable
 import functools
 import math
+from typing import Any
 
 import jax
 import jax.numpy as jnp
 from jax.experimental import pallas as pl
 from jax.experimental.pallas import tpu as pltpu
+from jax.experimental.pallas.ops.tpu.paged_attention.paged_attention_kernel import paged_attention
 from jax.experimental.shard_map import shard_map
 
 import torch
@@ -13,6 +16,7 @@ import torch.nn.functional as F
 import numpy as np
 
 DEFAULT_MASK_VALUE = -0.7 * float(np.finfo(np.dtype("float32")).max)
+P = jax.sharding.PartitionSpec
 
 
 def ragged_flash_attention_kernel(
@@ -345,3 +349,43 @@ class RaggedAttentionKernel:
         k_scaler,
         v_scaler,
     )
+
+
+def shard_kv_heads(
+    paged_attention_impl: Callable[..., Any],
+    mesh: jax.sharding.Mesh,
+    kv_head_mesh_axis_name: str,
+):
+  """Shards GQA PagedAttention along KV heads."""
+  in_specs = (
+      P(None, kv_head_mesh_axis_name, None),  # q
+      P(kv_head_mesh_axis_name, None, None, None),  # k
+      P(kv_head_mesh_axis_name, None, None, None),  # v
+      P(),  # lengths
+      P(),  # page_indices
+  )
+
+  out_specs = P(None, kv_head_mesh_axis_name, None)  # q
+
+  return jax.jit(
+      shard_map.shard_map(
+          paged_attention_impl,
+          mesh=mesh,
+          in_specs=in_specs,
+          out_specs=out_specs,
+          check_rep=False,
+      )
+  )
+      
+def paged_attention_impl(env, xq, keys, values, seq_lens, page_indices):
+  paged_attention_impl = functools.partial(
+      paged_attention,
+      pages_per_compute_block=env.block_size // env.page_size,
+  )
+  sharded_paged_attention_impl = shard_kv_heads(
+      paged_attention_impl,
+      env.mesh,
+      kv_head_mesh_axis_name='x',
+  )  
+  return
+  

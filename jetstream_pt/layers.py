@@ -392,6 +392,7 @@ class AttentionKernel:
         output_specs=(qkv_pspec, (others_pspec, others_pspec)),
         sharding_axis=self.shard_axis,
     )
+    self.page_attention = ak.paged_attention_impl
 
   def __call__(
       self,
@@ -436,7 +437,9 @@ class AttentionKernel:
             ragged_batch_index,
             ragged_block_index,
         )
-      else:
+      elif self.env.page_attention and seqlen == 1:
+        output = self.page_attention(xq, keys, values, cache.page_token_indices[3], cache.page_token_indices[2])
+      else:  
         output = self.dense_attention(xq, keys, values, None, None, mask)
 
       if not self.env.ragged_mha and seqlen == 1:

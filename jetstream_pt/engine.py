@@ -37,6 +37,7 @@ from jetstream_pt import cache_manager
 from jetstream_pt import quantize
 from jetstream_pt import torchjax
 from jetstream_pt.environment import JetEngineEnvironment, JetEngineEnvironmentData, QuantizationConfig
+from jetstream_pt.page_attention_manager import PageAttentionManager
 from jetstream_pt.third_party.llama import model_exportable as llama_model, model_args
 from jetstream_pt.third_party.gemma import config as gemma_config, model as gemma_model
 from jetstream_pt.third_party.mixtral import config as mixtral_config, model as mixtral_model
@@ -99,6 +100,13 @@ class PyTorchEngine(engine_api.Engine):
     self.replicated = env.sharding_by_axis(-1)  # replicated
 
     self.cache_sharding = self.env.cache_sharding
+    
+    if self.env.page_attention:
+      self.page_attention_manager = PageAttentionManager(
+      batch_size=self.env.batch_size, 
+      total_num_pages=self.env._data.total_num_pages,
+      page_size=self.env._data.page_size,
+      max_pages_per_sequence=4)
 
     jax.config.update("jax_enable_x64", False)
 
@@ -161,6 +169,7 @@ class PyTorchEngine(engine_api.Engine):
       input_pos,
       ragged_batch_index,
       ragged_block_index,
+      page_token_indices,
   ):
     if self.env.quant_config.enable_kv_quantization:
       caches_obj = [
@@ -170,6 +179,13 @@ class PyTorchEngine(engine_api.Engine):
           for (k, v), (ks, vs) in torchjax.to_torch(
               list(zip(caches, cache_scales))
           )
+      ]
+    elif self.env.page_attention:
+      caches_obj = [
+          cache_manager.PageKVCacheGenerate(
+              k, v, page_token_indices, self.cache_sharding, env=self.env
+          )
+          for k, v in torchjax.to_torch(caches)
       ]
     else:
       caches_obj = [
@@ -488,6 +504,47 @@ class PyTorchEngine(engine_api.Engine):
         mask,
     )
 
+  # pylint: disable-next=all
+  def _insert_page_attention(
+      self,
+      prefix: Prefix,
+      decode_state: DecodeState,
+      slot: int,
+  ):
+    caches = self.page_attention_manager.insert_prefill_cache(prefill_caches=prefix.caches,
+              decode_caches=decode_state.caches,
+              slot=slot,
+              seq_len=prefix.seq_len,
+              sharding=self.cache_sharding,
+              )
+
+    current_pos = prefix.seq_len
+
+    pos = current_pos - prefix.seq_len
+    tokens = decode_state.tokens.at[slot].set(prefix.token)
+
+    x = jnp.arange(0, self.env.cache_sequence_length)
+    cond = jnp.logical_and(x < current_pos, x >= pos)
+    mask_insert = jnp.where(cond, 0, float("-inf"))
+    mask = decode_state.mask.at[slot].set(mask_insert)
+    start = decode_state.start.at[slot].set(
+        pos % self.env.cache_sequence_length
+    )
+
+    input_pos = decode_state.input_pos.at[slot].set(prefix.seq_len)
+    scales = None
+    lens = decode_state.lens.at[slot].set(1)
+    return DecodeState(
+        tokens,
+        caches,
+        scales,
+        decode_state.current_position,
+        lens,
+        start,
+        input_pos,
+        mask,
+    )    
+    
   def insert(
       self,
       prefix: Prefix,
@@ -513,6 +570,8 @@ class PyTorchEngine(engine_api.Engine):
           slot,
       )
     # Left aligned, starts from 0, guaranteed no wrap
+    elif self.page_attention:
+      return self._insert_page_attention(prefix, decode_state, slot)
     else:
       return self._insert_no_wrap(prefix, decode_state, slot)
 
@@ -577,6 +636,9 @@ class PyTorchEngine(engine_api.Engine):
       self, params: Any, decode_state: DecodeState
   ) -> tuple[DecodeState, engine_api.ResultTokens]:
     # seq_len = padded_tokens.shape[0]
+    if self.env.page_attention:
+      self.page_attention_manager.fill_new_pages(decode_state.lens)
+      page_token_indices = self.page_attention_manager.get_page_token_indices(decode_state.lens)
     pos = decode_state.current_position
     if self.env.ring_buffer:
       input_indexes = jnp.full((1,), pos)
@@ -603,6 +665,7 @@ class PyTorchEngine(engine_api.Engine):
         decode_state.input_pos,
         ragged_batch_index,
         ragged_block_index,
+        page_token_indices
     )
 
     next_token = self._sampling(logits, self.env.batch_size)
@@ -918,6 +981,11 @@ def create_pytorch_engine(
         args.n_kv_heads,
         max_cache_length,
         args.dim // args.n_heads,
+    ) if env_data.total_num_pages == 0 else (
+        args.n_kv_heads,
+        env_data.total_num_pages,
+        env_data.page_size,
+        args.head_dim,
     )
     env_data.model_type = model_name + "-" + param_size
     env_data.num_layers = args.n_layers
